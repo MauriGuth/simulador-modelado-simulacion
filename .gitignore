@@ -4,3 +4,6 @@
 *.out
 *.toc
 *.synctex.gz
+
+# Configuracion local de Claude Code
+.claude/settings.local.json
