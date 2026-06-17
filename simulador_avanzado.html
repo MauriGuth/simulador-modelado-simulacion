@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Avanzado - Sistemas Dinamicos y Metodos Complementarios</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.min.js"></script>
+    <style>
+        :root { --primary: #1a73e8; --primary-dark: #1557b0; --bg: #f8f9fa; --card: #fff; --text: #202124; --text2: #5f6368; --border: #dadce0; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+        .sidebar { width:250px; background:var(--card); border-right:1px solid var(--border); padding:16px 0; position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+        .sidebar-header { padding:0 16px 14px; border-bottom:1px solid var(--border); margin-bottom:8px; }
+        .sidebar-header h1 { font-size:14px; color:var(--primary); line-height:1.3; }
+        .sidebar-header p { font-size:10px; color:var(--text2); margin-top:2px; }
+        .nav-section { padding:6px 10px 3px; font-size:10px; font-weight:600; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+        .nav-item { display:block; padding:5px 16px; font-size:12px; color:var(--text); cursor:pointer; border-left:3px solid transparent; transition:.15s; text-decoration:none; }
+        .nav-item:hover { background:#f1f3f4; }
+        .nav-item.active { background:#e8f0fe; color:var(--primary); border-left-color:var(--primary); font-weight:500; }
+        .main { margin-left:250px; flex:1; padding:24px; max-width:1100px; }
+        .panel { display:none; }
+        .panel.active { display:block; }
+        .panel h2 { font-size:20px; margin-bottom:4px; }
+        .panel .sub { color:var(--text2); font-size:12px; margin-bottom:16px; }
+        .card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:14px; }
+        .card h3 { font-size:14px; margin-bottom:10px; }
+        .fr { display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+        .fg { display:flex; flex-direction:column; flex:1; min-width:120px; }
+        .fg label { font-size:11px; font-weight:500; color:var(--text2); margin-bottom:3px; }
+        .fg input,.fg select,.fg textarea { padding:7px 9px; border:1px solid var(--border); border-radius:5px; font-size:13px; font-family:Consolas,monospace; outline:none; }
+        .fg input:focus,.fg select:focus,.fg textarea:focus { border-color:var(--primary); }
+        .fg textarea { resize:vertical; min-height:60px; }
+        .btn { padding:8px 18px; border:none; border-radius:5px; font-size:13px; font-weight:500; cursor:pointer; }
+        .btn-p { background:var(--primary); color:#fff; }
+        .btn-p:hover { background:var(--primary-dark); }
+        .btn-s { background:#f1f3f4; color:var(--text); }
+        .bg { display:flex; gap:6px; margin-top:4px; }
+        .result { background:#e6f4ea; border:1px solid #ceead6; border-radius:5px; padding:10px 14px; margin-top:10px; font-size:13px; line-height:1.6; }
+        .result.err { background:#fce8e6; border-color:#f5c6c2; color:#d93025; }
+        .tc { overflow-x:auto; margin-top:8px; }
+        table { width:100%; border-collapse:collapse; font-size:12px; }
+        th { background:#f1f3f4; padding:6px 8px; text-align:left; font-weight:600; border-bottom:2px solid var(--border); white-space:nowrap; }
+        td { padding:5px 8px; border-bottom:1px solid #f1f3f4; font-family:Consolas,monospace; font-size:11px; }
+        .cc { width:100%; height:420px; margin-top:8px; }
+        .cc canvas { width:100%!important; height:100%!important; border:1px solid var(--border); border-radius:5px; }
+        .info { font-size:12px; color:var(--text2); line-height:1.5; margin-bottom:10px; }
+        .fblock { background:#f8f9fa; border:1px solid var(--border); border-radius:5px; padding:8px 12px; font-family:Consolas,monospace; font-size:12px; margin:6px 0; overflow-x:auto; }
+        a.back-link { display:inline-block; margin:8px 0; font-size:12px; color:var(--primary); }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <h1>Simulador Avanzado</h1>
+        <p>Sistemas Dinamicos + Complementos</p>
+        <a class="back-link" href="simulador.html">← Volver al simulador base</a>
+    </div>
+
+    <div class="nav-section">Complementos Numericos</div>
+    <a class="nav-item active" onclick="show('simpson38',this)">Simpson 3/8</a>
+    <a class="nav-item" onclick="show('deriv-tabla',this)">Derivacion (tabla datos)</a>
+    <a class="nav-item" onclick="show('mc-rechazo',this)">Montecarlo Rechazo (pi)</a>
+
+    <div class="nav-section">Sist. Autonomos 1D</div>
+    <a class="nav-item" onclick="show('auto1d',this)">Analisis 1D (equilibrios, flujo)</a>
+    <a class="nav-item" onclick="show('bifurcacion',this)">Diagrama Bifurcacion</a>
+
+    <div class="nav-section">Sistemas 2D</div>
+    <a class="nav-item" onclick="show('lineal2d',this)">Sistema Lineal 2D</a>
+    <a class="nav-item" onclick="show('nolineal2d',this)">Sistema No Lineal 2D</a>
+</nav>
+
+<div class="main">
+
+<!-- ============ SIMPSON 3/8 ============ -->
+<div class="panel active" id="p-simpson38">
+    <h2>Simpson 3/8</h2>
+    <p class="sub">n debe ser multiplo de 3</p>
+    <div class="card">
+        <div class="fr">
+            <div class="fg" style="flex:2"><label>f(x)</label><input id="s38-fx" value="6 + 3*cos(x)"></div>
+            <div class="fg"><label>a</label><input type="text" id="s38-a" value="0" step="any"></div>
+            <div class="fg"><label>b</label><input type="text" id="s38-b" value="1.5708" step="any"></div>
+            <div class="fg"><label>n (mult. 3)</label><input type="text" id="s38-n" value="6" min="3" step="3"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runS38()">Calcular</button></div>
+        <div id="s38-r"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="tc" id="s38-t"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="cc"><canvas id="s38-c"></canvas></div></div>
+</div>
+
+<!-- ============ DERIVACION TABLA ============ -->
+<div class="panel" id="p-deriv-tabla">
+    <h2>Derivacion con Tabla de Datos</h2>
+    <p class="sub">Ingrese datos discretos (t, x) - calcula velocidad y aceleracion por diferencias finitas centrales</p>
+    <div class="card">
+        <div class="info">Ingrese los valores separados por comas. En los extremos se usan diferencias forward/backward.</div>
+        <div class="fr">
+            <div class="fg"><label>t (tiempo)</label><input id="dt-t" value="0, 1, 2, 3, 4, 5, 6, 7, 8"></div>
+            <div class="fg"><label>x (posicion)</label><input id="dt-x" value="0, 1.9, 4.2, 7.8, 12, 17, 25, 32, 42"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runDerivTabla()">Calcular</button></div>
+        <div id="dt-r"></div>
+    </div>
+    <div class="card"><h3>Tabla: velocidad v(t) y aceleracion a(t)</h3><div class="tc" id="dt-t2"></div></div>
+    <div class="card"><h3>Graficas</h3><div class="cc" style="height:500px"><canvas id="dt-c"></canvas></div></div>
+</div>
+
+<!-- ============ MONTECARLO RECHAZO ============ -->
+<div class="panel" id="p-mc-rechazo">
+    <h2>Montecarlo - Rechazo (Hit-or-Miss)</h2>
+    <p class="sub">Aproxima pi con puntos aleatorios en un cuadrado</p>
+    <div class="card">
+        <div class="info">Genera N puntos en [0,1]x[0,1]. Cuenta cuantos caen dentro del circulo unitario (x^2+y^2 &le; 1). Entonces pi ≈ 4 * (puntos dentro / total).</div>
+        <div class="fr">
+            <div class="fg"><label>N (muestras)</label><input type="text" id="mcr-n" value="10000" min="100"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runMCRechazo()">Estimar pi</button></div>
+        <div id="mcr-r"></div>
+    </div>
+    <div class="card">
+        <h3>Tambien: area entre curvas por rechazo</h3>
+        <div class="info">Area entre f(x) y g(x) en [a,b] donde f(x) >= g(x). Se samplea en el rectangulo [a,b]x[0,ymax].</div>
+        <div class="fr">
+            <div class="fg"><label>f(x) (superior)</label><input id="mcr-fx" value="sqrt(x)"></div>
+            <div class="fg"><label>g(x) (inferior)</label><input id="mcr-gx" value="x^2"></div>
+        </div>
+        <div class="fr">
+            <div class="fg"><label>a</label><input type="text" id="mcr-a" value="0" step="any"></div>
+            <div class="fg"><label>b</label><input type="text" id="mcr-b" value="1" step="any"></div>
+            <div class="fg"><label>N</label><input type="text" id="mcr-n2" value="50000"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runMCArea()">Estimar Area</button></div>
+        <div id="mcr-r2"></div>
+    </div>
+    <div class="card"><h3>Visualizacion</h3><div class="cc"><canvas id="mcr-c"></canvas></div></div>
+</div>
+
+<!-- ============ AUTONOMO 1D ============ -->
+<div class="panel" id="p-auto1d">
+    <h2>Sistema Autonomo 1D</h2>
+    <p class="sub">dx/dt = f(x) - Equilibrios, estabilidad, diagrama de flujo</p>
+    <div class="card">
+        <div class="info">Ingrese f(x). El sistema busca donde f(x)=0 (equilibrios), analiza f'(x) para estabilidad, y dibuja el diagrama de fase 1D.</div>
+        <div class="fr">
+            <div class="fg" style="flex:2"><label>f(x) = dx/dt</label><input id="a1-fx" value="x*(1-x)"></div>
+            <div class="fg"><label>x min</label><input type="text" id="a1-xmin" value="-0.5" step="any"></div>
+            <div class="fg"><label>x max</label><input type="text" id="a1-xmax" value="1.5" step="any"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runAuto1D()">Analizar</button></div>
+        <div id="a1-r"></div>
+    </div>
+    <div class="card"><h3>Grafica f(x) y diagrama de flujo</h3><div class="cc" style="height:450px"><canvas id="a1-c"></canvas></div></div>
+</div>
+
+<!-- ============ BIFURCACION 1D ============ -->
+<div class="panel" id="p-bifurcacion">
+    <h2>Diagrama de Bifurcacion 1D</h2>
+    <p class="sub">dx/dt = f(x, r) - Varia r para encontrar bifurcaciones</p>
+    <div class="card">
+        <div class="info">Ingrese f(x,r). El sistema barre valores de r y busca los equilibrios x* donde f(x*,r)=0 para cada r.</div>
+        <div class="fr">
+            <div class="fg" style="flex:2"><label>f(x, r)</label><input id="bif-fx" value="r + x^2"></div>
+        </div>
+        <div class="fr">
+            <div class="fg"><label>r min</label><input type="text" id="bif-rmin" value="-2" step="any"></div>
+            <div class="fg"><label>r max</label><input type="text" id="bif-rmax" value="2" step="any"></div>
+            <div class="fg"><label>x min</label><input type="text" id="bif-xmin" value="-3" step="any"></div>
+            <div class="fg"><label>x max</label><input type="text" id="bif-xmax" value="3" step="any"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runBifurcacion()">Generar</button></div>
+        <div id="bif-r"></div>
+    </div>
+    <div class="card"><h3>Diagrama (estable=azul, inestable=rojo)</h3><div class="cc" style="height:500px"><canvas id="bif-c"></canvas></div></div>
+</div>
+
+<!-- ============ SISTEMA LINEAL 2D ============ -->
+<div class="panel" id="p-lineal2d">
+    <h2>Sistema Lineal 2D</h2>
+    <p class="sub">X' = AX - Autovalores, clasificacion, retrato de fase</p>
+    <div class="card">
+        <h3>Matriz A (2x2)</h3>
+        <div class="info">dx/dt = a*x + b*y, dy/dt = c*x + d*y</div>
+        <div class="fr">
+            <div class="fg"><label>a (A[1,1])</label><input type="text" id="l2-a" value="1" step="any"></div>
+            <div class="fg"><label>b (A[1,2])</label><input type="text" id="l2-b" value="-2" step="any"></div>
+            <div class="fg"><label>c (A[2,1])</label><input type="text" id="l2-c" value="3" step="any"></div>
+            <div class="fg"><label>d (A[2,2])</label><input type="text" id="l2-d" value="-4" step="any"></div>
+        </div>
+        <div class="fr">
+            <div class="fg"><label>Rango x,y</label><input type="text" id="l2-rng" value="5" step="any"></div>
+        </div>
+        <div class="bg"><button class="btn btn-p" onclick="runLineal2D()">Analizar</button></div>
+        <div id="l2-r"></div>
+    </div>
+    <div class="card"><h3>Retrato de fase + campo vectorial</h3><div class="cc" style="height:520px"><canvas id="l2-cc"></canvas></div></div>
+</div>
+
+<!-- ============ SISTEMA NO LINEAL 2D ============ -->
+<div class="panel" id="p-nolineal2d">
+    <h2>Sistema No Lineal 2D</h2>
+    <p class="sub">dx/dt = f(x,y), dy/dt = g(x,y) - Equilibrios, Jacobiano, retrato de fase</p>
+    <div class="card">
+        <div class="fr">
+            <div class="fg" style="flex:2"><label>dx/dt = f(x,y)</label><input id="nl-fx" value="x*(3-x) - 2*x*y"></div>
+            <div class="fg" style="flex:2"><label>dy/dt = g(x,y)</label><input id="nl-gy" value="y*(2-y) - x*y"></div>
+        </div>
+        <div class="fr">
+            <div class="fg"><label>x min</label><input type="text" id="nl-xmin" value="-1" step="any"></div>
+            <div class="fg"><label>x max</label><input type="text" id="nl-xmax" value="4" step="any"></div>
+            <div class="fg"><label>y min</label><input type="text" id="nl-ymin" value="-1" step="any"></div>
+            <div class="fg"><label>y max</label><input type="text" id="nl-ymax" value="4" step="any"></div>
+        </div>
+        <div class="info">Click en la grafica para agregar trayectorias desde ese punto inicial.</div>
+        <div class="fr">
+            <div class="fg"><label>Mostrar nulclinas</label>
+                <select id="nl-nullclines"><option value="si" selected>Si</option><option value="no">No</option></select>
+            </div>
+        </div>
+        <div class="bg">
+            <button class="btn btn-p" onclick="runNoLineal2D()">Analizar + Campo</button>
+            <button class="btn btn-s" onclick="clearTraj()">Limpiar trayectorias</button>
+        </div>
+        <div id="nl-r"></div>
+    </div>
+    <div class="card"><h3>Retrato de fase (click para trayectorias)</h3><div class="cc" style="height:550px"><canvas id="nl-c"></canvas></div></div>
+</div>
+
+</div><!-- main -->
+
+<script>
+const E = (expr, scope) => { try { return math.evaluate(expr, scope); } catch(e) { return NaN; } };
+// Lee un input y evalua su contenido como expresion matematica (acepta pi/10, sqrt(2), coma decimal, etc.)
+function PF(id) {
+    const el = document.getElementById(id); if (!el) return NaN;
+    let v = (el.value ?? '').toString().trim();
+    if (v === '') return NaN;
+    if (v.indexOf(',') !== -1 && v.indexOf('.') === -1) v = v.replace(/,/g, '.');
+    try { const r = math.evaluate(v); if (typeof r === 'number' && !isNaN(r)) return r; } catch(e) {}
+    return parseFloat(v);
+}
+const F = (n, d=8) => { if(typeof n!=='number'||isNaN(n)) return 'NaN'; if(!isFinite(n)) return n>0?'+Inf':'-Inf'; return Number(n.toFixed(d)).toString(); };
+
+function show(id, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('p-' + id).classList.add('active');
+    if (el) el.classList.add('active');
+}
+
+// ============ ZOOM / PAN SYSTEM ============
+const zoomRegistry = {};
+function registerZoom(canvasId, redrawFn, bounds) {
+    const canvas = document.getElementById(canvasId); if (!canvas) return;
+    const entry = { redrawFn, orig: {...bounds}, cur: {...bounds}, panning: false, panStart: null, boundsStart: null };
+    zoomRegistry[canvasId] = entry;
+    canvas.onwheel = function(e) {
+        e.preventDefault(); const ent = zoomRegistry[canvasId]; if (!ent) return;
+        const rect = canvas.getBoundingClientRect();
+        const mg = { l: 50, t: 20, r: 20, b: 35 };
+        const cw = rect.width - mg.l - mg.r, ch = rect.height - mg.t - mg.b;
+        const mx = (e.clientX - rect.left - mg.l) / cw, my = 1 - (e.clientY - rect.top - mg.t) / ch;
+        const factor = e.deltaY > 0 ? 1.15 : 0.87;
+        const b = ent.cur;
+        const xAt = b.xMin + mx * (b.xMax - b.xMin), yAt = b.yMin + my * (b.yMax - b.yMin);
+        ent.cur = { xMin: xAt - (xAt - b.xMin) * factor, xMax: xAt + (b.xMax - xAt) * factor, yMin: yAt - (yAt - b.yMin) * factor, yMax: yAt + (b.yMax - yAt) * factor };
+        ent.redrawFn(ent.cur);
+    };
+    canvas.onmousedown = function(e) {
+        if (e.button !== 0) return; const ent = zoomRegistry[canvasId]; if (!ent) return;
+        ent.panning = true; ent.panStart = { x: e.clientX, y: e.clientY }; ent.boundsStart = {...ent.cur}; canvas.style.cursor = 'grabbing';
+    };
+    canvas.onmousemove = function(e) {
+        const ent = zoomRegistry[canvasId]; if (!ent || !ent.panning) { canvas.style.cursor = 'grab'; return; }
+        const rect = canvas.getBoundingClientRect();
+        const mg = { l: 50, t: 20, r: 20, b: 35 };
+        const cw = rect.width - mg.l - mg.r, ch = rect.height - mg.t - mg.b;
+        const dxPx = e.clientX - ent.panStart.x, dyPx = e.clientY - ent.panStart.y;
+        const bs = ent.boundsStart;
+        const dxD = -dxPx / cw * (bs.xMax - bs.xMin), dyD = dyPx / ch * (bs.yMax - bs.yMin);
+        ent.cur = { xMin: bs.xMin + dxD, xMax: bs.xMax + dxD, yMin: bs.yMin + dyD, yMax: bs.yMax + dyD };
+        ent.redrawFn(ent.cur);
+    };
+    canvas.onmouseup = canvas.onmouseleave = function() {
+        const ent = zoomRegistry[canvasId]; if (!ent) return; ent.panning = false; canvas.style.cursor = 'grab';
+    };
+    canvas.ondblclick = function(e) {
+        e.preventDefault(); const ent = zoomRegistry[canvasId]; if (!ent) return;
+        ent.cur = {...ent.orig}; ent.redrawFn(ent.cur);
+    };
+    canvas.style.cursor = 'grab';
+    const parent = canvas.parentElement;
+    if (!parent.querySelector('.zh')) {
+        const h = document.createElement('div'); h.className = 'zh';
+        h.style.cssText = 'font-size:10px;color:#999;text-align:center;margin-top:3px';
+        h.textContent = 'Scroll=zoom | Arrastrar=mover | DblClick=reset';
+        parent.appendChild(h);
+    }
+}
+
+// ============ CANVAS HELPERS ============
+function setupCanvas(id) {
+    const c = document.getElementById(id);
+    const r = c.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    c.width = r.width * dpr; c.height = r.height * dpr;
+    const ctx = c.getContext('2d'); ctx.scale(dpr, dpr);
+    return { ctx, W: r.width, H: r.height, canvas: c };
+}
+
+function drawAxes(ctx, W, H, m, xMin, xMax, yMin, yMax) {
+    const cw = W - m.l - m.r, ch = H - m.t - m.b;
+    const tx = x => m.l + (x - xMin) / (xMax - xMin) * cw;
+    const ty = y => m.t + ch - (y - yMin) / (yMax - yMin) * ch;
+    // Grid
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) { const x = tx(xMin + (xMax - xMin) * i / 8); ctx.beginPath(); ctx.moveTo(x, m.t); ctx.lineTo(x, m.t + ch); ctx.stroke(); }
+    for (let i = 0; i <= 6; i++) { const y = ty(yMin + (yMax - yMin) * i / 6); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + cw, y); ctx.stroke(); }
+    // Axes
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 1;
+    if (yMin <= 0 && yMax >= 0) { const y0 = ty(0); ctx.beginPath(); ctx.moveTo(m.l, y0); ctx.lineTo(m.l + cw, y0); ctx.stroke(); }
+    if (xMin <= 0 && xMax >= 0) { const x0 = tx(0); ctx.beginPath(); ctx.moveTo(x0, m.t); ctx.lineTo(x0, m.t + ch); ctx.stroke(); }
+    // Labels
+    ctx.fillStyle = '#666'; ctx.font = '10px system-ui'; ctx.textAlign = 'center';
+    for (let i = 0; i <= 8; i++) { const v = xMin + (xMax - xMin) * i / 8; ctx.fillText(F(v, 2), tx(v), m.t + ch + 14); }
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 6; i++) { const v = yMin + (yMax - yMin) * i / 6; ctx.fillText(F(v, 2), m.l - 4, ty(v) + 3); }
+    return { tx, ty, cw, ch };
+}
+
+// ============ SIMPSON 3/8 ============
+function runS38() {
+    const expr = document.getElementById('s38-fx').value;
+    const a = PF('s38-a'), b = PF('s38-b');
+    let n = parseInt(document.getElementById('s38-n').value);
+    if (n % 3 !== 0) { n = Math.ceil(n / 3) * 3; document.getElementById('s38-n').value = n; }
+    const h = (b - a) / n;
+    const xs = [], ys = [];
+    for (let i = 0; i <= n; i++) { const x = a + i * h; xs.push(x); ys.push(E(expr, { x })); }
+    let sum = ys[0] + ys[n];
+    for (let i = 1; i < n; i++) sum += (i % 3 === 0 ? 2 : 3) * ys[i];
+    const integral = (3 * h / 8) * sum;
+    document.getElementById('s38-r').innerHTML = `<div class="result"><b>Integral (Simpson 3/8) =</b> ${F(integral, 10)} | h=${F(h)} | n=${n}</div>`;
+    let html = '<table><tr><th>i</th><th>x_i</th><th>f(x_i)</th><th>Coef</th></tr>';
+    for (let i = 0; i <= n; i++) {
+        const c = (i === 0 || i === n) ? 1 : (i % 3 === 0 ? 2 : 3);
+        html += `<tr><td>${i}</td><td>${F(xs[i])}</td><td>${F(ys[i])}</td><td>${c}</td></tr>`;
+    }
+    document.getElementById('s38-t').innerHTML = html + '</table>';
+    // Chart
+    const { ctx, W, H } = setupCanvas('s38-c');
+    const m = { t: 20, r: 20, b: 35, l: 50 };
+    const yMin = Math.min(...ys, 0) - 0.5, yMax = Math.max(...ys) * 1.1;
+    const { tx, ty } = drawAxes(ctx, W, H, m, a - (b - a) * 0.05, b + (b - a) * 0.05, yMin, yMax);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, W - m.l - m.r, H - m.t - m.b); ctx.clip();
+    // Fill
+    ctx.fillStyle = 'rgba(26,115,232,0.12)';
+    ctx.beginPath(); ctx.moveTo(tx(a), ty(0));
+    const fineN = 300;
+    for (let i = 0; i <= fineN; i++) { const x = a + (b - a) * i / fineN; ctx.lineTo(tx(x), ty(E(expr, { x }))); }
+    ctx.lineTo(tx(b), ty(0)); ctx.closePath(); ctx.fill();
+    // Curve
+    ctx.strokeStyle = '#1a73e8'; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i <= fineN; i++) { const x = a + (b - a) * i / fineN; const px = tx(x), py = ty(E(expr, { x })); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }
+    ctx.stroke();
+    // Points
+    ctx.fillStyle = '#d93025';
+    xs.forEach((x, i) => { ctx.beginPath(); ctx.arc(tx(x), ty(ys[i]), 3, 0, Math.PI * 2); ctx.fill(); });
+    ctx.restore();
+    // Zoom
+    const xMinB = a - (b - a) * 0.05, xMaxB = b + (b - a) * 0.05;
+    registerZoom('s38-c', function(bz) {
+        const { ctx: c2, W: W2, H: H2 } = setupCanvas('s38-c');
+        const { tx: tx2, ty: ty2 } = drawAxes(c2, W2, H2, { t:20, r:20, b:35, l:50 }, bz.xMin, bz.xMax, bz.yMin, bz.yMax);
+        c2.save(); c2.beginPath(); c2.rect(50, 20, W2-70, H2-55); c2.clip();
+        c2.fillStyle = 'rgba(26,115,232,0.12)'; c2.beginPath(); c2.moveTo(tx2(a), ty2(0));
+        for (let i=0;i<=300;i++){const x=a+(b-a)*i/300; c2.lineTo(tx2(x), ty2(E(expr,{x})))} c2.lineTo(tx2(b),ty2(0)); c2.closePath(); c2.fill();
+        c2.strokeStyle='#1a73e8'; c2.lineWidth=2; c2.beginPath();
+        for(let i=0;i<=300;i++){const x=a+(b-a)*i/300; const px=tx2(x),py=ty2(E(expr,{x})); i===0?c2.moveTo(px,py):c2.lineTo(px,py)} c2.stroke();
+        c2.fillStyle='#d93025'; xs.forEach((x,i)=>{c2.beginPath();c2.arc(tx2(x),ty2(ys[i]),3,0,Math.PI*2);c2.fill()});
+        c2.restore();
+    }, { xMin: xMinB, xMax: xMaxB, yMin, yMax });
+}
+
+// ============ DERIVACION TABLA ============
+function runDerivTabla() {
+    const ts = document.getElementById('dt-t').value.split(',').map(Number);
+    const xs = document.getElementById('dt-x').value.split(',').map(Number);
+    const n = ts.length;
+    if (n !== xs.length || n < 3) { document.getElementById('dt-r').innerHTML = '<div class="result err">Minimo 3 puntos, misma cantidad t y x</div>'; return; }
+    const vs = [], as = [];
+    for (let i = 0; i < n; i++) {
+        let v, acc;
+        if (i === 0) { v = (xs[1] - xs[0]) / (ts[1] - ts[0]); } // forward
+        else if (i === n - 1) { v = (xs[n - 1] - xs[n - 2]) / (ts[n - 1] - ts[n - 2]); } // backward
+        else { v = (xs[i + 1] - xs[i - 1]) / (ts[i + 1] - ts[i - 1]); } // central
+        vs.push(v);
+        if (i === 0) { const h1=ts[1]-ts[0],h2=ts[2]-ts[1]; acc = n>2 ? 2*(h1*xs[2]-(h1+h2)*xs[1]+h2*xs[0])/(h1*h2*(h1+h2)) : 0; }
+        else if (i === n - 1) { const h1=ts[n-1]-ts[n-2],h2=ts[n-2]-ts[n-3]; acc = 2*(h2*xs[n-1]-(h1+h2)*xs[n-2]+h1*xs[n-3])/(h1*h2*(h1+h2)); }
+        else { const h1=ts[i]-ts[i-1],h2=ts[i+1]-ts[i]; acc = 2*(h1*xs[i+1]-(h1+h2)*xs[i]+h2*xs[i-1])/(h1*h2*(h1+h2)); }
+        as.push(acc);
+    }
+    document.getElementById('dt-r').innerHTML = `<div class="result">Velocidad y aceleracion calculadas para ${n} puntos.</div>`;
+    let html = '<table><tr><th>t</th><th>x(t)</th><th>v(t) = dx/dt</th><th>a(t) = d²x/dt²</th></tr>';
+    for (let i = 0; i < n; i++) html += `<tr><td>${F(ts[i], 2)}</td><td>${F(xs[i], 2)}</td><td>${F(vs[i], 4)}</td><td>${F(as[i], 4)}</td></tr>`;
+    document.getElementById('dt-t2').innerHTML = html + '</table>';
+    // Chart
+    const { ctx, W, H } = setupCanvas('dt-c');
+    const m = { t: 20, r: 20, b: 35, l: 50 };
+    const allY = [...xs, ...vs, ...as];
+    const yMin = Math.min(...allY) * 1.1 - 1, yMax = Math.max(...allY) * 1.1 + 1;
+    const { tx, ty } = drawAxes(ctx, W, H, m, Math.min(...ts), Math.max(...ts), yMin, yMax);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, W - m.l - m.r, H - m.t - m.b); ctx.clip();
+    [[xs, '#1a73e8', 'x(t)'], [vs, '#d93025', 'v(t)'], [as, '#0d904f', 'a(t)']].forEach(([data, color, label], di) => {
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+        data.forEach((y, i) => { const px = tx(ts[i]), py = ty(y); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }); ctx.stroke();
+        ctx.fillStyle = color; data.forEach((y, i) => { ctx.beginPath(); ctx.arc(tx(ts[i]), ty(y), 3, 0, Math.PI * 2); ctx.fill(); });
+    });
+    ctx.restore();
+    // Legend
+    ctx.font = '11px system-ui';
+    [['x(t)', '#1a73e8', 0], ['v(t)', '#d93025', 1], ['a(t)', '#0d904f', 2]].forEach(([l, c, i]) => {
+        ctx.fillStyle = c; ctx.fillRect(m.l + 10, m.t + 10 + i * 16, 12, 3); ctx.fillStyle = '#333'; ctx.textAlign = 'left'; ctx.fillText(l, m.l + 26, m.t + 14 + i * 16);
+    });
+}
+
+// ============ MONTECARLO RECHAZO ============
+function runMCRechazo() {
+    const N = parseInt(document.getElementById('mcr-n').value);
+    let inside = 0;
+    const ptsIn = [], ptsOut = [];
+    for (let i = 0; i < N; i++) {
+        const x = Math.random(), y = Math.random();
+        if (x * x + y * y <= 1) { inside++; ptsIn.push([x, y]); } else { ptsOut.push([x, y]); }
+    }
+    const piEst = 4 * inside / N;
+    const err = Math.abs(piEst - Math.PI);
+    document.getElementById('mcr-r').innerHTML = `<div class="result"><b>pi ≈</b> ${F(piEst, 10)} | <b>Error:</b> ${F(err)} | <b>Dentro:</b> ${inside}/${N} (${F(100 * inside / N, 2)}%)</div>`;
+    // Draw
+    const { ctx, W, H } = setupCanvas('mcr-c');
+    const m = { t: 20, r: 20, b: 35, l: 50 };
+    const { tx, ty } = drawAxes(ctx, W, H, m, -0.05, 1.05, -0.05, 1.05);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, W - m.l - m.r, H - m.t - m.b); ctx.clip();
+    // Circle arc
+    ctx.strokeStyle = '#1a73e8'; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i <= 100; i++) { const a = (Math.PI / 2) * i / 100; const px = tx(Math.cos(a)), py = ty(Math.sin(a)); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }
+    ctx.stroke();
+    // Points (sample for performance)
+    const maxPts = 5000;
+    const stepIn = Math.max(1, Math.floor(ptsIn.length / maxPts));
+    const stepOut = Math.max(1, Math.floor(ptsOut.length / maxPts));
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#1a73e8';
+    for (let i = 0; i < ptsIn.length; i += stepIn) { ctx.fillRect(tx(ptsIn[i][0]) - 1, ty(ptsIn[i][1]) - 1, 2, 2); }
+    ctx.fillStyle = '#d93025';
+    for (let i = 0; i < ptsOut.length; i += stepOut) { ctx.fillRect(tx(ptsOut[i][0]) - 1, ty(ptsOut[i][1]) - 1, 2, 2); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+}
+
+function runMCArea() {
+    const fExpr = document.getElementById('mcr-fx').value, gExpr = document.getElementById('mcr-gx').value;
+    const a = PF('mcr-a'), b = PF('mcr-b');
+    const N = parseInt(document.getElementById('mcr-n2').value);
+    // Find ymin/ymax for both curves
+    let ymin = Infinity, ymax = -Infinity;
+    for (let i = 0; i <= 100; i++) { const x = a + (b - a) * i / 100; const fv=E(fExpr,{x}),gv=E(gExpr,{x}); ymin=Math.min(ymin,fv,gv); ymax=Math.max(ymax,fv,gv); }
+    ymin = ymin - Math.abs(ymin)*0.05; ymax = ymax + Math.abs(ymax)*0.05;
+    if (ymax <= ymin) { ymin -= 1; ymax += 1; }
+    let hits = 0;
+    for (let i = 0; i < N; i++) {
+        const x = a + Math.random() * (b - a), y = ymin + Math.random() * (ymax - ymin);
+        const fv = E(fExpr, { x }), gv = E(gExpr, { x });
+        if (y >= Math.min(fv, gv) && y <= Math.max(fv, gv)) hits++;
+    }
+    const area = (b - a) * (ymax - ymin) * hits / N;
+    document.getElementById('mcr-r2').innerHTML = `<div class="result"><b>Area (rechazo) =</b> ${F(area, 10)} | Hits: ${hits}/${N}</div>`;
+}
+
+// ============ AUTONOMO 1D ============
+function runAuto1D() {
+    const expr = document.getElementById('a1-fx').value;
+    const xMin = PF('a1-xmin'), xMax = PF('a1-xmax');
+    // Find equilibria (where f(x) ~ 0)
+    const n = 1000;
+    const dx = (xMax - xMin) / n;
+    const equilibria = [];
+    for (let i = 0; i < n; i++) {
+        const x1 = xMin + i * dx, x2 = x1 + dx;
+        const f1 = E(expr, { x: x1 }), f2 = E(expr, { x: x2 });
+        if (f1 * f2 <= 0 && isFinite(f1) && isFinite(f2)) {
+            // Bisect
+            let a = x1, b2 = x2;
+            for (let j = 0; j < 50; j++) {
+                const mid = (a + b2) / 2;
+                if (E(expr, { x: a }) * E(expr, { x: mid }) <= 0) b2 = mid; else a = mid;
+            }
+            equilibria.push((a + b2) / 2);
+        }
+    }
+    // Classify: compute f'(x*) numerically
+    const h = 1e-6;
+    let resHTML = '<div class="result"><b>Equilibrios encontrados:</b><br>';
+    equilibria.forEach(xeq => {
+        const dfx = (E(expr, { x: xeq + h }) - E(expr, { x: xeq - h })) / (2 * h);
+        const type = dfx < -1e-8 ? 'ESTABLE' : (dfx > 1e-8 ? 'INESTABLE' : 'NO HIPERBOLICO');
+        const color = dfx < -1e-8 ? '#0d904f' : (dfx > 1e-8 ? '#d93025' : '#e37400');
+        resHTML += `x* = ${F(xeq, 6)} | f'(x*) = ${F(dfx, 6)} | <span style="color:${color};font-weight:bold">${type}</span><br>`;
+    });
+    resHTML += '</div>';
+    document.getElementById('a1-r').innerHTML = resHTML;
+    // Draw
+    const { ctx, W, H } = setupCanvas('a1-c');
+    const m = { t: 20, r: 20, b: 60, l: 50 };
+    // Compute f(x) values
+    const xs = [], ys = [];
+    for (let i = 0; i <= 500; i++) { const x = xMin + (xMax - xMin) * i / 500; xs.push(x); ys.push(E(expr, { x })); }
+    const yMin2 = Math.min(...ys.filter(isFinite), 0) * 1.2 - 0.5;
+    const yMax2 = Math.max(...ys.filter(isFinite), 0) * 1.2 + 0.5;
+    const { tx, ty, cw, ch } = drawAxes(ctx, W, H, m, xMin, xMax, yMin2, yMax2);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, cw, ch); ctx.clip();
+    // f(x) curve
+    ctx.strokeStyle = '#1a73e8'; ctx.lineWidth = 2; ctx.beginPath();
+    xs.forEach((x, i) => { if (!isFinite(ys[i])) return; const px = tx(x), py = ty(ys[i]); i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+    ctx.stroke();
+    // Equilibria on graph (inside clip)
+    equilibria.forEach(xeq => {
+        const dfx = (E(expr, { x: xeq + h }) - E(expr, { x: xeq - h })) / (2 * h);
+        const stable = dfx < -1e-8;
+        ctx.beginPath(); ctx.arc(tx(xeq), ty(0), 5, 0, Math.PI * 2);
+        if (stable) { ctx.fillStyle = '#0d904f'; ctx.fill(); } else { ctx.strokeStyle = '#d93025'; ctx.lineWidth = 2; ctx.stroke(); }
+    });
+    ctx.restore();
+    // Phase line OUTSIDE clip (below the chart area)
+    const phaseY = m.t + ch + 25;
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tx(xMin), phaseY); ctx.lineTo(tx(xMax), phaseY); ctx.stroke();
+    // Flow arrows
+    const arrowN = 40;
+    for (let i = 0; i <= arrowN; i++) {
+        const x = xMin + (xMax - xMin) * i / arrowN;
+        const fv = E(expr, { x });
+        if (!isFinite(fv)) continue;
+        const px = tx(x);
+        const dir = fv > 0.01 ? 1 : (fv < -0.01 ? -1 : 0);
+        if (dir !== 0) {
+            ctx.fillStyle = dir > 0 ? '#1a73e8' : '#d93025';
+            ctx.beginPath();
+            ctx.moveTo(px + dir * 6, phaseY);
+            ctx.lineTo(px - dir * 2, phaseY - 4);
+            ctx.lineTo(px - dir * 2, phaseY + 4);
+            ctx.closePath(); ctx.fill();
+        }
+    }
+    // Equilibria on phase line
+    equilibria.forEach(xeq => {
+        const dfx = (E(expr, { x: xeq + h }) - E(expr, { x: xeq - h })) / (2 * h);
+        const stable = dfx < -1e-8;
+        ctx.beginPath(); ctx.arc(tx(xeq), phaseY, 5, 0, Math.PI * 2);
+        if (stable) { ctx.fillStyle = '#0d904f'; ctx.fill(); }
+        else { ctx.strokeStyle = '#d93025'; ctx.lineWidth = 2; ctx.stroke(); }
+    });
+    // Labels
+    ctx.fillStyle = '#333'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('x', m.l + cw / 2, phaseY + 15);
+    ctx.fillText('Diagrama de fase 1D', m.l + cw / 2, phaseY - 12);
+}
+
+// ============ BIFURCACION ============
+function runBifurcacion() {
+    const expr = document.getElementById('bif-fx').value;
+    const rMin = PF('bif-rmin'), rMax = PF('bif-rmax');
+    const xMin = PF('bif-xmin'), xMax = PF('bif-xmax');
+    const { ctx, W, H } = setupCanvas('bif-c');
+    const m = { t: 20, r: 20, b: 35, l: 50 };
+    const { tx, ty, cw, ch } = drawAxes(ctx, W, H, m, rMin, rMax, xMin, xMax);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, cw, ch); ctx.clip();
+    // Sweep r
+    const nR = 400, nX = 500, dx = (xMax - xMin) / nX, h = 1e-6;
+    const stablePts = [], unstablePts = [];
+    for (let ir = 0; ir <= nR; ir++) {
+        const r = rMin + (rMax - rMin) * ir / nR;
+        // Find zeros of f(x,r) for this r
+        for (let ix = 0; ix < nX; ix++) {
+            const x1 = xMin + ix * dx, x2 = x1 + dx;
+            const f1 = E(expr, { x: x1, r }), f2 = E(expr, { x: x2, r });
+            if (f1 * f2 <= 0 && isFinite(f1) && isFinite(f2)) {
+                let a = x1, b = x2;
+                for (let j = 0; j < 40; j++) { const mid = (a + b) / 2; if (E(expr, { x: a, r }) * E(expr, { x: mid, r }) <= 0) b = mid; else a = mid; }
+                const xeq = (a + b) / 2;
+                const dfx = (E(expr, { x: xeq + h, r }) - E(expr, { x: xeq - h, r })) / (2 * h);
+                if (dfx < 0) stablePts.push([r, xeq]); else unstablePts.push([r, xeq]);
+            }
+        }
+    }
+    // Draw
+    ctx.fillStyle = '#1a73e8';
+    stablePts.forEach(([r, x]) => { ctx.fillRect(tx(r) - 1, ty(x) - 1, 2, 2); });
+    ctx.fillStyle = '#d93025';
+    unstablePts.forEach(([r, x]) => { ctx.fillRect(tx(r) - 1, ty(x) - 1, 2, 2); });
+    ctx.restore();
+    ctx.fillStyle = '#333'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('r', m.l + cw / 2, m.t + ch + 30);
+    ctx.save(); ctx.translate(12, m.t + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('x*', 0, 0); ctx.restore();
+    document.getElementById('bif-r').innerHTML = `<div class="result"><b>Azul:</b> equilibrios estables | <b>Rojo:</b> inestables | ${stablePts.length + unstablePts.length} puntos</div>`;
+    // Zoom (redraws from cached points)
+    registerZoom('bif-c', function(bz) {
+        const { ctx: c2, W: W2, H: H2 } = setupCanvas('bif-c');
+        const { tx: tx2, ty: ty2, cw: cw2, ch: ch2 } = drawAxes(c2, W2, H2, m, bz.xMin, bz.xMax, bz.yMin, bz.yMax);
+        c2.save(); c2.beginPath(); c2.rect(m.l, m.t, cw2, ch2); c2.clip();
+        c2.fillStyle = '#1a73e8'; stablePts.forEach(([r, x]) => { c2.fillRect(tx2(r)-1, ty2(x)-1, 2, 2); });
+        c2.fillStyle = '#d93025'; unstablePts.forEach(([r, x]) => { c2.fillRect(tx2(r)-1, ty2(x)-1, 2, 2); });
+        c2.restore();
+        c2.fillStyle='#333';c2.font='11px system-ui';c2.textAlign='center';c2.fillText('r',m.l+cw2/2,m.t+ch2+30);
+        c2.save();c2.translate(12,m.t+ch2/2);c2.rotate(-Math.PI/2);c2.fillText('x*',0,0);c2.restore();
+    }, { xMin: rMin, xMax: rMax, yMin: xMin, yMax: xMax });
+}
+
+// ============ SISTEMA LINEAL 2D ============
+function runLineal2D() {
+    const a = PF('l2-a'), b = PF('l2-b');
+    const c = PF('l2-c'), d = PF('l2-d');
+    const rng = PF('l2-rng');
+    // Eigenvalues: lambda^2 - (a+d)*lambda + (ad-bc) = 0
+    const tr = a + d, det = a * d - b * c;
+    const disc = tr * tr - 4 * det;
+    let l1r, l1i, l2r, l2i, typeStr;
+    if (disc >= 0) {
+        l1r = (tr + Math.sqrt(disc)) / 2; l1i = 0;
+        l2r = (tr - Math.sqrt(disc)) / 2; l2i = 0;
+    } else {
+        l1r = tr / 2; l1i = Math.sqrt(-disc) / 2;
+        l2r = tr / 2; l2i = -Math.sqrt(-disc) / 2;
+    }
+    // Classify
+    if (Math.abs(det) < 1e-8) {
+        if (Math.abs(tr) < 1e-8) typeStr = 'DEGENERADO (det=0, tr=0) - matriz nula o nilpotente';
+        else typeStr = tr < 0 ? 'LINEA DE EQUILIBRIOS (det=0, estable)' : 'LINEA DE EQUILIBRIOS (det=0, inestable)';
+    } else if (disc < 0) {
+        if (tr < 0) typeStr = 'FOCO ESTABLE (espiral estable)';
+        else if (tr > 0) typeStr = 'FOCO INESTABLE (espiral inestable)';
+        else typeStr = 'CENTRO (orbitas cerradas)';
+    } else if (disc > 0) {
+        if (det < 0) typeStr = 'PUNTO SILLA';
+        else if (l1r > 0 && l2r > 0) typeStr = 'NODO INESTABLE';
+        else if (l1r < 0 && l2r < 0) typeStr = 'NODO ESTABLE';
+        else typeStr = 'CASO DEGENERADO';
+    } else {
+        if (l1r > 0) typeStr = 'NODO INESTABLE IMPROPIO (autovalor doble)';
+        else if (l1r < 0) typeStr = 'NODO ESTABLE IMPROPIO (autovalor doble)';
+        else typeStr = 'DEGENERADO (autovalor doble = 0)';
+    }
+    let res = `<div class="result"><b>Traza:</b> ${F(tr, 4)} | <b>Det:</b> ${F(det, 4)} | <b>Disc:</b> ${F(disc, 4)}<br>`;
+    res += `<b>Autovalores:</b> `;
+    if (l1i === 0) res += `λ1 = ${F(l1r, 4)}, λ2 = ${F(l2r, 4)}`;
+    else res += `λ = ${F(l1r, 4)} ± ${F(Math.abs(l1i), 4)}i`;
+    res += `<br><b>Clasificacion:</b> <span style="font-weight:bold;color:${tr<0&&det>0?'#0d904f':'#d93025'}">${typeStr}</span>`;
+    // Eigenvectors for real eigenvalues
+    if (disc >= 0) {
+        function getEV(lambda) {
+            // (A - lambda*I) * v = 0 => find null space
+            const m11 = a - lambda, m12 = b, m21 = c, m22 = d - lambda;
+            if (Math.abs(m11) > 1e-10) return [(-m12), m11]; // from first row
+            if (Math.abs(m21) > 1e-10) return [(-m22), m21]; // from second row
+            if (Math.abs(m12) > 1e-10) return [(-m12), m11];
+            return [1, 0]; // fallback: identity-like
+        }
+        const ev1 = getEV(l1r), ev2 = getEV(l2r);
+        // Normalize
+        const n1 = Math.sqrt(ev1[0]*ev1[0]+ev1[1]*ev1[1]) || 1, n2 = Math.sqrt(ev2[0]*ev2[0]+ev2[1]*ev2[1]) || 1;
+        res += `<br><b>Autovector 1:</b> (${F(ev1[0]/n1, 4)}, ${F(ev1[1]/n1, 4)}) | <b>Autovector 2:</b> (${F(ev2[0]/n2, 4)}, ${F(ev2[1]/n2, 4)})`;
+        if (disc === 0 && Math.abs(ev1[0]*ev2[1]-ev1[1]*ev2[0]) < 1e-8) {
+            res += '<br><i>(Autovalor doble, un solo autovector independiente - nodo impropio)</i>';
+        }
+    }
+    res += '</div>';
+    document.getElementById('l2-r').innerHTML = res;
+    // Phase portrait
+    drawPhasePortrait('l2-cc', (x, y) => a * x + b * y, (x, y) => c * x + d * y, -rng, rng, -rng, rng);
+}
+
+function drawPhasePortrait(canvasId, fx, fy, xMin, xMax, yMin, yMax) {
+    const { ctx, W, H, canvas } = setupCanvas(canvasId);
+    const m = { t: 20, r: 20, b: 35, l: 50 };
+    const { tx, ty, cw, ch } = drawAxes(ctx, W, H, m, xMin, xMax, yMin, yMax);
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, cw, ch); ctx.clip();
+    // Vector field
+    const nArrows = 20;
+    const dxGrid = (xMax - xMin) / nArrows, dyGrid = (yMax - yMin) / nArrows;
+    ctx.strokeStyle = 'rgba(150,150,150,0.5)'; ctx.lineWidth = 1;
+    for (let i = 0; i <= nArrows; i++) {
+        for (let j = 0; j <= nArrows; j++) {
+            const x = xMin + i * dxGrid, y = yMin + j * dyGrid;
+            const vx = fx(x, y), vy = fy(x, y);
+            if (!isFinite(vx) || !isFinite(vy)) continue;
+            const mag = Math.sqrt(vx * vx + vy * vy);
+            if (mag < 1e-10) continue;
+            const scale = Math.min(dxGrid * 0.4, 15 / Math.max(1, mag));
+            const px = tx(x), py = ty(y);
+            const ex = tx(x + vx * scale), ey = ty(y + vy * scale);
+            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey); ctx.stroke();
+            // Arrow head
+            const angle = Math.atan2(ey - py, ex - px);
+            ctx.beginPath();
+            ctx.moveTo(ex, ey);
+            ctx.lineTo(ex - 4 * Math.cos(angle - 0.4), ey - 4 * Math.sin(angle - 0.4));
+            ctx.lineTo(ex - 4 * Math.cos(angle + 0.4), ey - 4 * Math.sin(angle + 0.4));
+            ctx.closePath(); ctx.fillStyle = 'rgba(150,150,150,0.5)'; ctx.fill();
+        }
+    }
+    // Trajectories from several initial conditions
+    const colors = ['#1a73e8', '#d93025', '#0d904f', '#e37400', '#9334e6', '#00897b', '#c2185b', '#1565c0'];
+    const initPts = [];
+    for (let a = 0; a < 8; a++) {
+        const angle = a * Math.PI / 4;
+        const r = (xMax - xMin) * 0.35;
+        initPts.push([r * Math.cos(angle), r * Math.sin(angle)]);
+    }
+    // Add some on axes
+    initPts.push([(xMax - xMin) * 0.2, 0], [0, (yMax - yMin) * 0.2], [-(xMax - xMin) * 0.2, 0], [0, -(yMax - yMin) * 0.2]);
+
+    // RK4 step helper for trajectory integration
+    function rk4Step(x, y, dt) {
+        const k1x=dt*fx(x,y), k1y=dt*fy(x,y);
+        const k2x=dt*fx(x+k1x/2,y+k1y/2), k2y=dt*fy(x+k1x/2,y+k1y/2);
+        const k3x=dt*fx(x+k2x/2,y+k2y/2), k3y=dt*fy(x+k2x/2,y+k2y/2);
+        const k4x=dt*fx(x+k3x,y+k3y), k4y=dt*fy(x+k3x,y+k3y);
+        return [x+(k1x+2*k2x+2*k3x+k4x)/6, y+(k1y+2*k2y+2*k3y+k4y)/6];
+    }
+    const escX=xMin-(xMax-xMin),escXM=xMax+(xMax-xMin),escY=yMin-(yMax-yMin),escYM=yMax+(yMax-yMin);
+
+    initPts.forEach((p0, pi) => {
+        ctx.strokeStyle = colors[pi % colors.length]; ctx.lineWidth = 1.5;
+        let x = p0[0], y = p0[1];
+        const h = 0.01;
+        ctx.beginPath(); ctx.moveTo(tx(x), ty(y));
+        for (let step = 0; step < 3000; step++) {
+            if (!isFinite(fx(x,y)) || !isFinite(fy(x,y))) break;
+            [x, y] = rk4Step(x, y, h);
+            if (x < escX || x > escXM || y < escY || y > escYM) break;
+            ctx.lineTo(tx(x), ty(y));
+        }
+        ctx.stroke();
+        // Arrow at end
+        const vx = fx(x, y), vy = fy(x, y);
+        if (isFinite(vx) && isFinite(vy)) {
+            const angle = Math.atan2(-vy, vx); // screen coords
+            const ex = tx(x), ey = ty(y);
+            ctx.fillStyle = colors[pi % colors.length];
+            ctx.beginPath();
+            ctx.moveTo(ex, ey);
+            ctx.lineTo(ex - 6 * Math.cos(Math.atan2(ty(y) - ty(y + vy * 0.01), tx(x + vx * 0.01) - tx(x)) - 0.4), ey - 6 * Math.sin(Math.atan2(ty(y) - ty(y + vy * 0.01), tx(x + vx * 0.01) - tx(x)) - 0.4));
+            ctx.fill();
+        }
+    });
+    ctx.restore();
+    // Axis labels
+    ctx.fillStyle = '#333'; ctx.font = '11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('x', m.l + cw / 2, m.t + ch + 30);
+    ctx.save(); ctx.translate(12, m.t + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('y', 0, 0); ctx.restore();
+    // Register zoom
+    registerZoom(canvasId, function(b) {
+        drawPhasePortrait(canvasId, fx, fy, b.xMin, b.xMax, b.yMin, b.yMax);
+    }, { xMin, xMax, yMin, yMax });
+}
+
+// ============ SISTEMA NO LINEAL 2D ============
+let nlState = { fx: '', gy: '', xMin: 0, xMax: 0, yMin: 0, yMax: 0, trajs: [] };
+
+function runNoLineal2D() {
+    const fxExpr = document.getElementById('nl-fx').value, gyExpr = document.getElementById('nl-gy').value;
+    const xMin = PF('nl-xmin'), xMax = PF('nl-xmax');
+    const yMin = PF('nl-ymin'), yMax = PF('nl-ymax');
+    nlState = { fx: fxExpr, gy: gyExpr, xMin, xMax, yMin, yMax, trajs: [] };
+
+    const fx = (x, y) => E(fxExpr, { x, y });
+    const fy = (x, y) => E(gyExpr, { x, y });
+
+    // Find equilibria by grid search
+    const n = 100, dx = (xMax - xMin) / n, dy = (yMax - yMin) / n;
+    const eqs = [];
+    // Newton's method from grid points
+    for (let i = 0; i <= n; i += 5) {
+        for (let j = 0; j <= n; j += 5) {
+            let x = xMin + i * dx, y = yMin + j * dy;
+            for (let k = 0; k < 30; k++) {
+                const f = fx(x, y), g = fy(x, y);
+                if (!isFinite(f) || !isFinite(g)) break;
+                // Jacobian
+                const h = 1e-7;
+                const fx_x = (fx(x + h, y) - fx(x - h, y)) / (2 * h);
+                const fx_y = (fx(x, y + h) - fx(x, y - h)) / (2 * h);
+                const fy_x = (fy(x + h, y) - fy(x - h, y)) / (2 * h);
+                const fy_y = (fy(x, y + h) - fy(x, y - h)) / (2 * h);
+                const det = fx_x * fy_y - fx_y * fy_x;
+                if (Math.abs(det) < 1e-12) break;
+                const dx2 = (-f * fy_y + g * fx_y) / det;
+                const dy2 = (-fx_x * g + fy_x * f) / det;
+                x += dx2; y += dy2;
+                if (Math.abs(dx2) < 1e-10 && Math.abs(dy2) < 1e-10) {
+                    if (x >= xMin - 1 && x <= xMax + 1 && y >= yMin - 1 && y <= yMax + 1) {
+                        // Check not duplicate
+                        let dup = false;
+                        for (const eq of eqs) { if (Math.abs(eq[0] - x) < 1e-4 && Math.abs(eq[1] - y) < 1e-4) { dup = true; break; } }
+                        if (!dup) eqs.push([x, y]);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Classify equilibria
+    let res = '<div class="result"><b>Equilibrios:</b><br>';
+    eqs.forEach(([x0, y0]) => {
+        const h = 1e-7;
+        const J = [
+            [(fx(x0 + h, y0) - fx(x0 - h, y0)) / (2 * h), (fx(x0, y0 + h) - fx(x0, y0 - h)) / (2 * h)],
+            [(fy(x0 + h, y0) - fy(x0 - h, y0)) / (2 * h), (fy(x0, y0 + h) - fy(x0, y0 - h)) / (2 * h)]
+        ];
+        const tr = J[0][0] + J[1][1], det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+        const disc = tr * tr - 4 * det;
+        let type;
+        if (Math.abs(det) < 1e-8) { type = 'No aislado (det=0)'; }
+        else if (disc < 0) { type = tr < 0 ? 'Foco estable' : (tr > 0 ? 'Foco inestable' : 'Centro'); }
+        else if (det < 0) { type = 'Silla'; }
+        else { type = tr < 0 ? 'Nodo estable' : (tr > 0 ? 'Nodo inestable' : 'Degenerado'); }
+        const color = (tr < 0 && det > 0) ? '#0d904f' : '#d93025';
+        res += `(${F(x0, 4)}, ${F(y0, 4)}) | J: tr=${F(tr, 3)} det=${F(det, 3)} | <span style="color:${color};font-weight:bold">${type}</span><br>`;
+    });
+    res += '</div>';
+    document.getElementById('nl-r').innerHTML = res;
+
+    drawPhasePortrait('nl-c', fx, fy, xMin, xMax, yMin, yMax);
+
+    // Overlay: nullclines + equilibria
+    const canvas = document.getElementById('nl-c');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const mObj = { t: 20, r: 20, b: 35, l: 50 };
+    const cw = canvas.width / dpr - mObj.l - mObj.r, ch = canvas.height / dpr - mObj.t - mObj.b;
+    const txF = x => mObj.l + (x - xMin) / (xMax - xMin) * cw;
+    const tyF = y => mObj.t + ch - (y - yMin) / (yMax - yMin) * ch;
+
+    // Draw nullclines
+    const showNC = document.getElementById('nl-nullclines').value === 'si';
+    if (showNC) {
+        ctx.save(); ctx.scale(1/dpr, 1/dpr); ctx.scale(dpr, dpr);
+        ctx.beginPath(); ctx.rect(mObj.l, mObj.t, cw, ch); ctx.clip();
+        const ncRes = 300;
+        const dxNC = (xMax - xMin) / ncRes, dyNC = (yMax - yMin) / ncRes;
+        // f-nullcline (dx/dt = 0) in red-orange
+        // g-nullcline (dy/dt = 0) in cyan
+        [[fxExpr, 'rgba(230,80,0,0.7)', 'dx/dt=0'], [gyExpr, 'rgba(0,150,200,0.7)', 'dy/dt=0']].forEach(([expr, color]) => {
+            ctx.fillStyle = color;
+            for (let i = 0; i < ncRes; i++) {
+                for (let j = 0; j < ncRes; j++) {
+                    const x = xMin + i * dxNC, y = yMin + j * dyNC;
+                    const v1 = E(expr, { x, y });
+                    const v2 = E(expr, { x: x + dxNC, y });
+                    const v3 = E(expr, { x, y: y + dyNC });
+                    // Check sign change horizontally or vertically
+                    if ((isFinite(v1) && isFinite(v2) && v1 * v2 <= 0) ||
+                        (isFinite(v1) && isFinite(v3) && v1 * v3 <= 0)) {
+                        ctx.fillRect(txF(x) - 1, tyF(y) - 1, 2.5, 2.5);
+                    }
+                }
+            }
+        });
+        ctx.restore();
+        // Legend for nullclines
+        ctx.save(); ctx.scale(1/dpr, 1/dpr); ctx.scale(dpr, dpr);
+        ctx.font = '11px system-ui'; ctx.textAlign = 'left';
+        const lx = mObj.l + cw - 120, ly = mObj.t + 14;
+        ctx.fillStyle = 'rgba(230,80,0,0.8)'; ctx.fillRect(lx, ly - 6, 14, 3);
+        ctx.fillStyle = '#333'; ctx.fillText('dx/dt=0', lx + 18, ly);
+        ctx.fillStyle = 'rgba(0,150,200,0.8)'; ctx.fillRect(lx, ly + 10, 14, 3);
+        ctx.fillStyle = '#333'; ctx.fillText('dy/dt=0', lx + 18, ly + 16);
+        ctx.restore();
+    }
+
+    // Mark equilibria
+    eqs.forEach(([x0, y0]) => {
+        ctx.save(); ctx.scale(1/dpr, 1/dpr); ctx.scale(dpr, dpr);
+        ctx.beginPath(); ctx.arc(txF(x0), tyF(y0), 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(txF(x0), tyF(y0), 3, 0, Math.PI * 2);
+        ctx.fillStyle = '#d93025'; ctx.fill();
+        ctx.restore();
+    });
+
+    // Setup click handler for trajectories (uses zoom bounds if available)
+    canvas.onclick = function(evt) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = evt.clientX - rect.left, cy = evt.clientY - rect.top;
+        // Use current zoom bounds if available, otherwise original
+        const zb = zoomRegistry['nl-c'] ? zoomRegistry['nl-c'].cur : { xMin, xMax, yMin, yMax };
+        const bxMin = zb.xMin, bxMax = zb.xMax, byMin = zb.yMin, byMax = zb.yMax;
+        const x = bxMin + (cx - mObj.l) / cw * (bxMax - bxMin);
+        const y = byMax - (cy - mObj.t) / ch * (byMax - byMin);
+        addTrajectory(canvas, fx, fy, x, y, bxMin, bxMax, byMin, byMax);
+    };
+}
+
+function addTrajectory(canvas, fx, fy, x0, y0, xMin, xMax, yMin, yMax) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const mObj = { t: 20, r: 20, b: 35, l: 50 };
+    const cw = canvas.width / dpr - mObj.l - mObj.r, ch = canvas.height / dpr - mObj.t - mObj.b;
+    const txF = x => mObj.l + (x - xMin) / (xMax - xMin) * cw;
+    const tyF = y => mObj.t + ch - (y - yMin) / (yMax - yMin) * ch;
+    // RK4 step
+    function rk4S(x,y,dt){
+        const k1x=dt*fx(x,y),k1y=dt*fy(x,y);
+        const k2x=dt*fx(x+k1x/2,y+k1y/2),k2y=dt*fy(x+k1x/2,y+k1y/2);
+        const k3x=dt*fx(x+k2x/2,y+k2y/2),k3y=dt*fy(x+k2x/2,y+k2y/2);
+        const k4x=dt*fx(x+k3x,y+k3y),k4y=dt*fy(x+k3x,y+k3y);
+        return[x+(k1x+2*k2x+2*k3x+k4x)/6,y+(k1y+2*k2y+2*k3y+k4y)/6];
+    }
+    const escX=xMin-(xMax-xMin),escXM=xMax+(xMax-xMin),escY=yMin-(yMax-yMin),escYM=yMax+(yMax-yMin);
+
+    const colors = ['#e91e63', '#ff9800', '#4caf50', '#2196f3', '#9c27b0', '#00bcd4'];
+    nlState.trajs.push([x0, y0]);
+    const color = colors[(nlState.trajs.length - 1) % colors.length];
+
+    ctx.save(); ctx.beginPath(); ctx.rect(mObj.l * dpr, mObj.t * dpr, cw * dpr, ch * dpr); ctx.clip();
+    // Forward (RK4)
+    ctx.strokeStyle = color; ctx.lineWidth = 2 * dpr;
+    let x = x0, y = y0;
+    ctx.beginPath(); ctx.moveTo(txF(x) * dpr, tyF(y) * dpr);
+    for (let i = 0; i < 5000; i++) {
+        if (!isFinite(fx(x,y)) || !isFinite(fy(x,y))) break;
+        [x, y] = rk4S(x, y, 0.005);
+        if (x < escX || x > escXM || y < escY || y > escYM) break;
+        ctx.lineTo(txF(x) * dpr, tyF(y) * dpr);
+    }
+    ctx.stroke();
+    // Backward (RK4)
+    x = x0; y = y0;
+    ctx.setLineDash([4 * dpr, 3 * dpr]);
+    ctx.beginPath(); ctx.moveTo(txF(x) * dpr, tyF(y) * dpr);
+    for (let i = 0; i < 5000; i++) {
+        if (!isFinite(fx(x,y)) || !isFinite(fy(x,y))) break;
+        [x, y] = rk4S(x, y, -0.005);
+        if (x < escX || x > escXM || y < escY || y > escYM) break;
+        ctx.lineTo(txF(x) * dpr, tyF(y) * dpr);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    // Start point
+    ctx.beginPath(); ctx.arc(txF(x0), tyF(y0), 4, 0, Math.PI * 2);
+    ctx.fillStyle = color; ctx.fill();
+    ctx.restore();
+}
+
+function clearTraj() {
+    nlState.trajs = [];
+    if (nlState.fx) runNoLineal2D();
+}
+
+</script>
+</body>
+</html>

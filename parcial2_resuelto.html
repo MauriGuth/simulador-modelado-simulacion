@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Segundo Parcial — Resolución completa</title>
+<script>
+MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['$$','$$']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" id="MathJax-script" async></script>
+<style>
+  body { font-family: Georgia, 'Times New Roman', serif; max-width: 900px; margin: 0 auto; padding: 30px 40px; color: #1a1a1a; line-height: 1.6; }
+  h1 { text-align: center; border-bottom: 3px solid #1a3a6b; padding-bottom: 12px; color: #1a3a6b; }
+  h2 { background: #1a3a6b; color: #fff; padding: 10px 16px; border-radius: 6px; margin-top: 42px; font-size: 1.25em; }
+  h3 { color: #1a3a6b; border-left: 4px solid #1a3a6b; padding-left: 10px; margin-top: 26px; }
+  .box { background: #eef3fb; border: 1px solid #c3d4ee; border-radius: 8px; padding: 12px 18px; margin: 16px 0; }
+  .res { background: #e8f6ec; border: 1px solid #9bd3ad; border-radius: 8px; padding: 12px 18px; margin: 16px 0; font-weight: bold; }
+  .warn { background: #fdf3e0; border: 1px solid #e7c178; border-radius: 8px; padding: 12px 18px; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.95em; }
+  th, td { border: 1px solid #b8c4d6; padding: 8px 12px; text-align: center; }
+  th { background: #1a3a6b; color: #fff; }
+  tr:nth-child(even) { background: #f4f7fc; }
+  img { max-width: 100%; border: 1px solid #ccc; border-radius: 6px; margin: 14px 0; display: block; }
+  .figcap { text-align: center; font-size: 0.85em; color: #666; font-style: italic; margin-top: -8px; }
+  .figrow { display: flex; gap: 12px; flex-wrap: wrap; }
+  .figrow img { flex: 1; min-width: 250px; }
+  @media print { h2 { -webkit-print-color-adjust: exact; print-color-adjust: exact; } body { padding: 10px; } }
+  .toc { background: #f4f7fc; border: 1px solid #c3d4ee; border-radius: 8px; padding: 14px 22px; }
+  .toc a { color: #1a3a6b; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<h1>Segundo Parcial — Modelado y Simulación<br><small style="font-size:0.55em;color:#555;">Resolución completa paso a paso</small></h1>
+
+<div class="toc">
+<b>Contenido</b>
+<ol>
+<li><a href="#e1a">1a — Población con pesca (logística con cosecha)</a></li>
+<li><a href="#e1b">1b — Modelo de Verhulst (demostración)</a></li>
+<li><a href="#e1c">1c — Enfriamiento de Newton</a></li>
+<li><a href="#e2a">2a — Competencia conejos–ovejas</a></li>
+<li><a href="#e2b">2b — Romeo y Julieta</a></li>
+<li><a href="#e2c">2c — Lyapunov + coordenadas polares</a></li>
+<li><a href="#e3">3 — Péndulo simple sin fricción (Hamilton)</a></li>
+<li><a href="#e4">4 — Bifurcación de Hopf</a></li>
+</ol>
+</div>
+
+<!-- ===================== 1a ===================== -->
+<h2 id="e1a">Ejercicio 1a — Población con pesca (logística con cosecha)</h2>
+
+$$\dot{x} = r\,x\left(1-\frac{x}{k}\right) - h \qquad\qquad r=0.5,\quad k=100,\quad h=5$$
+
+<h3>Paso 1 — Puntos de equilibrio (\(\dot{x}=0\))</h3>
+<p>Igualo a cero y reordeno como cuadrática:</p>
+$$r\,x - \frac{r}{k}\,x^2 - h = 0 \quad\xrightarrow{\ \times(-k/r)\ }\quad x^2 - k\,x + \frac{k\,h}{r} = 0$$
+$$x^* = \frac{k \pm \sqrt{\,k^2 - \dfrac{4kh}{r}\,}}{2}$$
+<p>Reemplazo \(k=100\), \(\dfrac{kh}{r}=\dfrac{100\cdot 5}{0.5}=1000\):</p>
+$$x^2 - 100x + 1000 = 0,\qquad \Delta = 100^2 - 4(1000) = 6000,\qquad \sqrt{6000}=20\sqrt{15}$$
+<div class="res">$$x^* = \frac{100 \pm 20\sqrt{15}}{2} = 50 \pm 10\sqrt{15} \;\Rightarrow\; x^*_- = 11.27 \ ,\quad x^*_+ = 88.73$$</div>
+
+<h3>Paso 2 — Estabilidad con \(f'(x)\)</h3>
+$$f'(x) = r - \frac{2r}{k}\,x = \frac{r\,(k-2x)}{k} = 0.5\cdot\frac{100-2x}{100}$$
+<ul>
+<li>\(f'(11.27) = 0.5\cdot\dfrac{100-22.54}{100} = +0.387 > 0 \Rightarrow\) <b>INESTABLE</b> (repulsor)</li>
+<li>\(f'(88.73) = 0.5\cdot\dfrac{100-177.46}{100} = -0.387 < 0 \Rightarrow\) <b>ESTABLE</b> (atractor)</li>
+</ul>
+
+<h3>Paso 3 — Bifurcación silla-nodo en \(h = rk/4\)</h3>
+<p>Los dos equilibrios colapsan cuando el discriminante se anula:</p>
+$$\Delta = k^2 - \frac{4kh}{r} = 0 \;\Rightarrow\; h = \frac{rk}{4} = \frac{0.5\cdot 100}{4} = 12.5$$
+<p>Ahí: \(x^* = \dfrac{k}{2} = 50\) y \(f'(50)=0\) (no hiperbólico). Transversalidad: \(f''=-\dfrac{2r}{k}\neq0\), \(\dfrac{\partial f}{\partial h}=-1\neq0\) ⟹ silla-nodo genuina.</p>
+<table>
+<tr><th>Rango de h</th><th>Equilibrios</th><th>Dinámica</th></tr>
+<tr><td>\(h<12.5\)</td><td>dos reales</td><td>pesca sostenible</td></tr>
+<tr><td>\(h=12.5\)</td><td>uno doble (x=50)</td><td>umbral crítico</td></tr>
+<tr><td>\(h>12.5\)</td><td>ninguno real</td><td><b>extinción garantizada</b></td></tr>
+</table>
+
+<h3>Paso 4 — Simulación (RK4)</h3>
+<ul>
+<li>\(x_0=20 > 11.27 \Rightarrow\) converge a <b>88.73</b> (sobrevive)</li>
+<li>\(x_0=10 < 11.27 \Rightarrow \dot{x}<0\), cruza 0 en \(t\approx 5.33\) (<b>extinción</b>)</li>
+</ul>
+<div class="figrow">
+<img src="graficos/parcial2/ej1a_fase1D.png" alt="fase 1D">
+<img src="graficos/parcial2/ej1a_xt.png" alt="x(t)">
+</div>
+<img src="graficos/parcial2/ej1a_bifurcacion.png" alt="bifurcacion">
+<div class="figcap">Fase 1D · soluciones x(t) · diagrama de bifurcación (h crítico = 12.5)</div>
+
+<!-- ===================== 1b ===================== -->
+<h2 id="e1b">Ejercicio 1b — Modelo de Verhulst (demostración)</h2>
+$$\frac{dp}{dt} = k\,p\,(N-p) \qquad\text{Demostrar que}\qquad P(t)=\frac{N}{1+A\,e^{-Nkt}}$$
+
+<h3>Paso 1 — Separar variables</h3>
+$$\frac{dp}{p\,(N-p)} = k\,dt$$
+
+<h3>Paso 2 — Fracciones parciales</h3>
+$$\frac{1}{p(N-p)} = \frac{A}{p}+\frac{B}{N-p}\;\Rightarrow\; 1 = A(N-p)+B\,p$$
+<p>Con \(p=0:\ A=\tfrac{1}{N}\); con \(p=N:\ B=\tfrac{1}{N}\). Entonces:</p>
+$$\frac{1}{p(N-p)} = \frac{1}{N}\left(\frac{1}{p}+\frac{1}{N-p}\right)$$
+
+<h3>Paso 3 — Integrar</h3>
+$$\frac{1}{N}\big[\ln|p| - \ln|N-p|\big] = k\,t + C \;\Rightarrow\; \ln\frac{p}{N-p} = N k t + C_1$$
+
+<h3>Paso 4 — Despejar p</h3>
+$$\frac{p}{N-p} = B\,e^{Nkt} \;\Rightarrow\; p\big(1+B e^{Nkt}\big)=N B e^{Nkt}$$
+<p>Divido numerador y denominador por \(B e^{Nkt}\) y defino \(A=\tfrac{1}{B}\):</p>
+<div class="res">$$P(t) = \frac{N}{1 + A\,e^{-Nkt}} \qquad\blacksquare$$</div>
+
+<h3>Paso 5 — Constante por condición inicial</h3>
+$$P(0)=P_0 \;\Rightarrow\; P_0 = \frac{N}{1+A} \;\Rightarrow\; A = \frac{N-P_0}{P_0}$$
+<p>Equilibrios: \(P^*=0\) (fuente, \(f'(0)=Nk>0\)) y \(P^*=N\) (sumidero, \(f'(N)=-Nk<0\)). Inflexión en \(P=N/2\).</p>
+<img src="graficos/parcial2/ej1b_curva_logistica.png" alt="curva logistica" style="max-width:60%;margin:0 auto;">
+
+<!-- ===================== 1c ===================== -->
+<h2 id="e1c">Ejercicio 1c — Enfriamiento de Newton</h2>
+$$\frac{dT}{dt} = -k\,(T-T_a)\qquad k=0.04\ \text{min}^{-1},\quad T(0)=200^\circ C$$
+
+<h3>Paso 1 — Resolver (cambio de variable \(u=T-T_a\))</h3>
+$$\frac{du}{dt}=-k\,u \;\Rightarrow\; u = u_0\,e^{-kt} \;\Rightarrow\; T(t)=T_a+(T_0-T_a)\,e^{-kt}$$
+
+<h3>Paso 2 — Evaluar en t = 30 min</h3>
+$$kt = 0.04\cdot 30 = 1.2,\qquad e^{-1.2}=0.30119$$
+<div class="warn"><b>⚠ El valor de \(T_a\) está cortado en el enunciado.</b> Tres lecturas posibles — usá la que corresponda al dato real:</div>
+<table>
+<tr><th>\(T_a\)</th><th>\(T(30)=T_a+(200-T_a)\cdot 0.30119\)</th></tr>
+<tr><td>0 (sin energía residual)</td><td><b>60.24 °C</b></td></tr>
+<tr><td>20</td><td>74.21 °C</td></tr>
+<tr><td>25</td><td>77.71 °C</td></tr>
+</table>
+<p>Equilibrio \(T^*=T_a\) estable (\(\lambda=-k<0\)).</p>
+<img src="graficos/parcial2/ej1c_enfriamiento_3casos.png" alt="enfriamiento" style="max-width:70%;margin:0 auto;">
+
+<!-- ===================== 2a ===================== -->
+<h2 id="e2a">Ejercicio 2a — Competencia conejos (x) – ovejas (y)</h2>
+$$\dot{x}=x(3-x)-2xy = x(3-x-2y),\qquad \dot{y}=y(2-y)-xy = y(2-y-x)$$
+
+<h3>Paso 1 — Equilibrios</h3>
+<p>\(x=0\) ó \(3-x-2y=0\); y \(y=0\) ó \(2-y-x=0\). Combinando los 4 casos:</p>
+<table>
+<tr><th>Condición</th><th>Equilibrio</th></tr>
+<tr><td>\(x=0,\ y=0\)</td><td>(0, 0)</td></tr>
+<tr><td>\(x=0,\ 2-y=0\)</td><td>(0, 2)</td></tr>
+<tr><td>\(3-x=0,\ y=0\)</td><td>(3, 0)</td></tr>
+<tr><td>\(3-x-2y=0\ \wedge\ 2-y-x=0\)</td><td>(1, 1)</td></tr>
+</table>
+<p>Para (1,1): restando las rectas \((3-x-2y)-(2-y-x)=1-y=0\Rightarrow y=1,\ x=1\).</p>
+
+<h3>Paso 2 — Jacobiano y clasificación</h3>
+$$J = \begin{pmatrix} 3-2x-2y & -2x \\ -y & 2-2y-x \end{pmatrix}$$
+<table>
+<tr><th>Equilibrio</th><th>J evaluado</th><th>Autovalores</th><th>Tipo</th></tr>
+<tr><td>(0,0)</td><td>\(\begin{pmatrix}3&0\\0&2\end{pmatrix}\)</td><td>3, 2</td><td>nodo <b>inestable</b></td></tr>
+<tr><td>(3,0)</td><td>\(\begin{pmatrix}-3&-6\\0&-1\end{pmatrix}\)</td><td>−3, −1</td><td>nodo <b>estable</b></td></tr>
+<tr><td>(0,2)</td><td>\(\begin{pmatrix}-1&0\\-2&-2\end{pmatrix}\)</td><td>−1, −2</td><td>nodo <b>estable</b></td></tr>
+<tr><td>(1,1)</td><td>\(\begin{pmatrix}-1&-2\\-1&-1\end{pmatrix}\)</td><td>\(-1\pm\sqrt{2}\) = +0.414, −2.414</td><td><b>silla</b></td></tr>
+</table>
+<p>Para (1,1): \(\text{tr}=-2,\ \det=(-1)(-1)-(-2)(-1)=1-2=-1<0\) ⟹ silla. \(\lambda=-1\pm\sqrt{1+1}=-1\pm\sqrt{2}\).</p>
+
+<h3>Paso 3 — Condición inicial (3 conejos, 2 ovejas)</h3>
+<div class="res">Integrando desde (3,2) → converge a (3,0): <b>predominan los CONEJOS</b> (x→3); las ovejas se extinguen (y→0). Exclusión competitiva.</div>
+<div class="figrow">
+<img src="graficos/parcial2/ej2a_retrato_fase.png" alt="retrato fase 2a">
+<img src="graficos/parcial2/ej2a_serie_temporal.png" alt="serie 2a">
+</div>
+
+<!-- ===================== 2b ===================== -->
+<h2 id="e2b">Ejercicio 2b — Romeo y Julieta</h2>
+$$\dot{x}=3x+2y,\qquad \dot{y}=-2x-2y,\qquad A=\begin{pmatrix}3&2\\-2&-2\end{pmatrix}$$
+
+<h3>Paso 1 — Polinomio característico</h3>
+$$\det(A-\lambda I)=(3-\lambda)(-2-\lambda)-(2)(-2)=\lambda^2-\lambda-6+4=\lambda^2-\lambda-2=0$$
+$$(\lambda-2)(\lambda+1)=0 \;\Rightarrow\; \lambda_1=2,\quad \lambda_2=-1$$
+<p>\(\text{tr}=1,\ \det=-2<0\) ⟹ <b>SILLA (inestable)</b>.</p>
+
+<h3>Paso 2 — Autovectores</h3>
+<ul>
+<li>\(\lambda=-1:\ (A+I)v=0 \Rightarrow \begin{pmatrix}4&2\\-2&-1\end{pmatrix}v=0 \Rightarrow 4v_1+2v_2=0 \Rightarrow v_1=(1,-2)\)</li>
+<li>\(\lambda=2:\ (A-2I)v=0 \Rightarrow \begin{pmatrix}1&2\\-2&-4\end{pmatrix}v=0 \Rightarrow v_1+2v_2=0 \Rightarrow v_2=(2,-1)\)</li>
+</ul>
+
+<h3>Paso 3 — Solución general y CI (1,1)</h3>
+$$X(t)=c_1\begin{pmatrix}1\\-2\end{pmatrix}e^{-t}+c_2\begin{pmatrix}2\\-1\end{pmatrix}e^{2t}$$
+<p>Con \(x_0=1,\ y_0=1\): \(\ c_1+2c_2=1,\ -2c_1-c_2=1 \Rightarrow c_2=1,\ c_1=-1\).</p>
+<div class="res">$$x(t)=2e^{2t}-e^{-t},\qquad y(t)=2e^{-t}-e^{2t}$$</div>
+
+<h3>Paso 4 — Largo plazo</h3>
+<p>Domina \(e^{2t}\): \(x\to+\infty,\ y\to-\infty\). El afecto <b>diverge</b>: Romeo se obsesiona, Julieta lo rechaza cada vez más (relación inestable, salvo sobre la recta estable \(v_1\)).</p>
+<div class="figrow">
+<img src="graficos/parcial2/ej2b_retrato_fase_silla.png" alt="silla">
+<img src="graficos/parcial2/ej2b_series_temporales.png" alt="series 2b">
+</div>
+
+<!-- ===================== 2c ===================== -->
+<h2 id="e2c">Ejercicio 2c — Lyapunov + coordenadas polares</h2>
+$$\dot{x}=-y-x(x^2+y^2),\qquad \dot{y}=x-y(x^2+y^2)$$
+
+<h3>(i) Función de Lyapunov \(V=\tfrac{1}{2}(x^2+y^2)\)</h3>
+<p>Con \(r^2=x^2+y^2\):</p>
+$$\dot{V}=x\,\dot{x}+y\,\dot{y}=x\big[-y-x\,r^2\big]+y\big[x-y\,r^2\big]$$
+$$=-xy-x^2 r^2+xy-y^2 r^2=-(x^2+y^2)\,r^2=-r^4 < 0$$
+<div class="res">\(V>0\) definida positiva y \(\dot{V}<0\) ⟹ <b>origen asintóticamente estable</b> (foco que pierde energía).</div>
+
+<h3>(ii) Coordenadas polares</h3>
+<p>Usando \(r\dot{r}=x\dot{x}+y\dot{y}\) y \(r^2\dot{\theta}=x\dot{y}-y\dot{x}\):</p>
+$$r\dot{r}=-r^4 \Rightarrow \dot{r}=-r^3,\qquad\qquad x\dot{y}-y\dot{x}=x^2+y^2=r^2 \Rightarrow \dot{\theta}=1$$
+<p>Integro \(\dot{r}=-r^3\):</p>
+$$\frac{dr}{r^3}=-dt \;\Rightarrow\; -\frac{1}{2r^2}=-t+C \;\Rightarrow\; \frac{1}{2r^2}=t+\frac{1}{2r_0^2}$$
+<div class="res">$$r(t)=\frac{r_0}{\sqrt{1+2r_0^2\,t}}\;\xrightarrow{\ t\to\infty\ }\;0$$</div>
+<p>Espiral antihoraria (\(\dot{\theta}=1\)) que colapsa al origen.</p>
+<div class="figrow">
+<img src="graficos/parcial2/ej2c_retrato_fase.png" alt="espiral 2c">
+<img src="graficos/parcial2/ej2c_rt_decay.png" alt="r(t) 2c">
+</div>
+
+<!-- ===================== 3 ===================== -->
+<h2 id="e3">Ejercicio 3 — Péndulo simple sin fricción</h2>
+$$\dot{x}=y,\qquad \dot{y}=-\sin x$$
+
+<h3>(a) Equilibrios y análisis cualitativo</h3>
+<p>\(\dot{x}=0\Rightarrow y=0\); \(\dot{y}=0\Rightarrow \sin x=0\Rightarrow x=n\pi\). Equilibrios \((n\pi,\,0)\).</p>
+$$J=\begin{pmatrix}0&1\\-\cos x&0\end{pmatrix},\qquad \text{tr}=0,\qquad \det=\cos(n\pi)=(-1)^n,\qquad \lambda=\pm\sqrt{-(-1)^n}$$
+<ul>
+<li><b>n par</b> (0, ±2π, …): \(\det=1,\ \lambda=\pm i\) ⟹ <b>CENTRO</b> (órbitas cerradas = oscilaciones).</li>
+<li><b>n impar</b> (±π, ±3π, …): \(\det=-1,\ \lambda=\pm 1\) ⟹ <b>SILLA</b> (separatrices).</li>
+</ul>
+
+<h3>(b) Conservativo + Hamiltoniano</h3>
+<p>Divergencia del campo:</p>
+$$\nabla\cdot F=\frac{\partial(y)}{\partial x}+\frac{\partial(-\sin x)}{\partial y}=0 \;\Rightarrow\; \text{conservativo}$$
+<div class="res">$$H(x,y)=\tfrac{1}{2}y^2+(1-\cos x)$$</div>
+<p>Verificación de que \(H\) genera el sistema:</p>
+$$\frac{\partial H}{\partial y}=y=\dot{x}\ \checkmark \qquad\qquad -\frac{\partial H}{\partial x}=-\sin x=\dot{y}\ \checkmark$$
+<p>Y se conserva sobre las trayectorias:</p>
+$$\frac{dH}{dt}=\frac{\partial H}{\partial x}\,\dot{x}+\frac{\partial H}{\partial y}\,\dot{y}=(\sin x)(y)+(y)(-\sin x)=0$$
+<p>Separatriz \(H=2\) pasa por las sillas \((\pi,0)\): \(H<2\) oscilaciones, \(H>2\) rotaciones.</p>
+<div class="figrow">
+<img src="graficos/parcial2/ej3_pendulo_retrato_fase.png" alt="pendulo">
+<img src="graficos/parcial2/ej3_pendulo_hamiltoniano_niveles.png" alt="niveles H">
+</div>
+
+<!-- ===================== 4 ===================== -->
+<h2 id="e4">Ejercicio 4 — Bifurcación de Hopf</h2>
+$$\dot{x}=\mu x-y-x(x^2+y^2),\qquad \dot{y}=x+\mu y-y(x^2+y^2)$$
+
+<h3>Paso 1 — Pasar a polares (\(r^2=x^2+y^2\))</h3>
+$$r\dot{r}=x\dot{x}+y\dot{y}=\mu(x^2+y^2)-r^2(x^2+y^2)=\mu r^2-r^4 \;\Rightarrow\; \dot{r}=\mu r-r^3$$
+$$r^2\dot{\theta}=x\dot{y}-y\dot{x}=x^2+y^2=r^2 \;\Rightarrow\; \dot{\theta}=1$$
+
+<h3>Paso 2 — Equilibrio en el origen</h3>
+$$J(0,0)=\begin{pmatrix}\mu&-1\\1&\mu\end{pmatrix},\qquad \lambda=\mu\pm i$$
+<ul>
+<li>\(\mu<0:\ \text{Re}(\lambda)<0\) ⟹ <b>foco estable</b> (sin ciclo).</li>
+<li>\(\mu=0:\ \lambda=\pm i,\ \text{Re}=0\) ⟹ <b>bifurcación de Hopf</b>. Transversalidad \(\tfrac{d}{d\mu}\text{Re}(\lambda)=1>0\) ⟹ supercrítica.</li>
+<li>\(\mu>0:\) foco inestable.</li>
+</ul>
+
+<h3>Paso 3 — Ciclo límite (a)</h3>
+$$\dot{r}=r(\mu-r^2)=0 \;\Rightarrow\; r=0 \ \text{ó}\ r^*=\sqrt{\mu}\ \ (\text{solo si }\mu>0)$$
+<p>Estabilidad radial: \(\dfrac{d\dot{r}}{dr}=\mu-3r^2\). En \(r^*\): \(\mu-3\mu=-2\mu<0\) ⟹ ciclo límite estable.</p>
+<div class="res">Para \(\mu=0.5\): ciclo límite estable de radio \(r^*=\sqrt{0.5}=0.707\).</div>
+
+<h3>Paso 4 — Estructura orbital (b)</h3>
+<p>\(\dot{\theta}=1\) → rotación uniforme antihoraria. Toda trayectoria (salvo el origen) espiralea hacia la circunferencia \(r=\sqrt{\mu}\). Para \(\mu\le 0\): todo colapsa al origen.</p>
+<div class="figrow">
+<img src="graficos/parcial2/ej4_retrato_fase_mu_neg.png" alt="mu neg">
+<img src="graficos/parcial2/ej4_retrato_fase_mu_pos.png" alt="mu pos">
+</div>
+<img src="graficos/parcial2/ej4_diagrama_amplitud_hopf.png" alt="amplitud hopf" style="max-width:65%;margin:0 auto;">
+
+<hr style="margin-top:40px;">
+<p style="text-align:center;color:#888;font-size:0.85em;">Modelado y Simulación — Segundo parcial · Resolución verificada con sympy/numpy</p>
+
+</body>
+</html>

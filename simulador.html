@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio de Modelado y Simulacion - Metodos Numericos</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --border: #dadce0;
+            --success: #0d904f;
+            --error: #d93025;
+            --warning: #e37400;
+            --sidebar-width: 260px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--card);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        .sidebar-header { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+        .sidebar-header h1 { font-size: 15px; color: var(--primary); line-height: 1.4; }
+        .sidebar-header p { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+        .nav-section { padding: 8px 12px 4px; font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .nav-item {
+            display: block; padding: 6px 20px; font-size: 12px; color: var(--text);
+            text-decoration: none; cursor: pointer; border-left: 3px solid transparent; transition: all 0.15s;
+        }
+        .nav-item:hover { background: #f1f3f4; }
+        .nav-item.active { background: #e8f0fe; color: var(--primary); border-left-color: var(--primary); font-weight: 500; }
+        .main { margin-left: var(--sidebar-width); flex: 1; padding: 30px; max-width: 1100px; }
+        .method-panel { display: none; }
+        .method-panel.active { display: block; }
+        .method-panel h2 { font-size: 22px; margin-bottom: 4px; }
+        .method-panel .subtitle { color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+        .card h3 { font-size: 15px; margin-bottom: 14px; }
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .form-group { display: flex; flex-direction: column; flex: 1; min-width: 130px; }
+        .form-group label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; }
+        .form-group input, .form-group select {
+            padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+            font-size: 14px; font-family: 'Consolas', 'Monaco', monospace; outline: none; transition: border-color 0.15s;
+        }
+        .form-group input:focus, .form-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,115,232,0.15); }
+        .btn { padding: 9px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: #f1f3f4; color: var(--text); }
+        .btn-secondary:hover { background: #e8eaed; }
+        .btn-group { display: flex; gap: 8px; margin-top: 4px; }
+        .table-container { overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f1f3f4; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid var(--border); white-space: nowrap; }
+        td { padding: 7px 10px; border-bottom: 1px solid #f1f3f4; font-family: 'Consolas', monospace; font-size: 12px; }
+        tr:hover td { background: #f8f9fa; }
+        .chart-container { position: relative; width: 100%; height: 380px; margin-top: 10px; }
+        .chart-container canvas { width: 100% !important; height: 100% !important; border: 1px solid var(--border); border-radius: 6px; }
+        .result-box { background: #e6f4ea; border: 1px solid #ceead6; border-radius: 6px; padding: 12px 16px; margin-top: 12px; font-size: 14px; }
+        .result-box.error { background: #fce8e6; border-color: #f5c6c2; color: var(--error); }
+        .formula-hint { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .matrix-grid { display: inline-grid; gap: 4px; margin: 10px 0; }
+        .matrix-grid input { width: 60px; padding: 6px; text-align: center; border: 1px solid var(--border); border-radius: 4px; font-family: 'Consolas', monospace; font-size: 13px; }
+        .matrix-grid input:focus { border-color: var(--primary); outline: none; }
+        .info-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 12px; }
+        .formula-block { background: #f8f9fa; border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: 'Consolas', monospace; font-size: 13px; margin: 8px 0; overflow-x: auto; }
+        @media (max-width: 900px) { .sidebar { width: 220px; } .main { margin-left: 220px; padding: 20px; } }
+        /* Math Keyboard */
+        .math-kb{display:none;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);padding:8px;position:absolute;z-index:200;width:340px}
+        .math-kb.visible{display:block}
+        .math-kb-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+        .math-kb button{padding:7px 2px;border:1px solid #e0e0e0;border-radius:5px;background:#f8f9fa;font-size:12px;font-family:'Consolas',monospace;cursor:pointer;color:#333;transition:.15s}
+        .math-kb button:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+        .math-kb button.wide{grid-column:span 2;background:#e8f0fe;font-weight:600}
+        .math-kb-close{position:absolute;top:4px;right:8px;background:none;border:none;font-size:16px;cursor:pointer;color:#999}
+        .math-kb-title{font-size:10px;color:#999;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+        .fg .kb-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--primary);color:#fff;border:none;border-radius:4px;width:22px;height:22px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7}
+        .fg .kb-toggle:hover{opacity:1}
+        .fg{position:relative}
+    </style>
+</head>
+<body>
+
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <h1>Laboratorio de Metodos Numericos</h1>
+        <p>Modelado y Simulacion</p>
+    </div>
+
+    <div class="nav-section">Clase 1 - Raices</div>
+    <a class="nav-item active" onclick="showPanel('biseccion',this)">Biseccion</a>
+    <a class="nav-item" onclick="showPanel('punto-fijo',this)">Punto Fijo</a>
+
+    <div class="nav-section">Clase 2 - Newton / Aitken</div>
+    <a class="nav-item" onclick="showPanel('newton',this)">Newton-Raphson</a>
+    <a class="nav-item" onclick="showPanel('aitken',this)">Aceleracion de Aitken</a>
+
+    <div class="nav-section">Clase 3 - Interpolacion / Derivacion</div>
+    <a class="nav-item" onclick="showPanel('lagrange',this)">Lagrange</a>
+    <a class="nav-item" onclick="showPanel('newton-interp',this)">Newton (Dif. Divididas)</a>
+    <a class="nav-item" onclick="showPanel('derivacion',this)">Derivacion Numerica</a>
+
+    <div class="nav-section">Clase 5 - Integracion</div>
+    <a class="nav-item" onclick="showPanel('rectangulos',this)">Rectangulos</a>
+    <a class="nav-item" onclick="showPanel('trapecio',this)">Trapecio</a>
+    <a class="nav-item" onclick="showPanel('simpson',this)">Simpson 1/3</a>
+
+    <div class="nav-section">Clase 6 - Montecarlo</div>
+    <a class="nav-item" onclick="showPanel('montecarlo',this)">Montecarlo 1D / Multi-D</a>
+
+    <div class="nav-section">Clase 7 - EDOs / EDPs</div>
+    <a class="nav-item" onclick="showPanel('euler',this)">Euler</a>
+    <a class="nav-item" onclick="showPanel('euler-mod',this)">Euler Modificado (Heun)</a>
+    <a class="nav-item" onclick="showPanel('taylor',this)">Taylor (orden 2)</a>
+    <a class="nav-item" onclick="showPanel('runge-kutta',this)">Runge-Kutta (RK4)</a>
+    <a class="nav-item" onclick="showPanel('campo-dir',this)">Campo de Direcciones</a>
+    <a class="nav-item" onclick="showPanel('edo-comp',this)">Comparar EDOs</a>
+    <a class="nav-item" onclick="showPanel('edp',this)">EDP Dif. Finitas</a>
+
+    <div class="nav-section" style="margin-top:12px;padding-top:10px;border-top:2px solid #1a73e8">
+        <a href="simulador_avanzado.html" style="color:#1a73e8;text-decoration:none;font-size:12px;font-weight:600">→ Simulador Avanzado</a>
+        <div style="font-size:9px;color:#888;margin-top:2px">Sist. 2D, Bifurcaciones, MC Rechazo, Simpson 3/8</div>
+    </div>
+
+    <div class="nav-section">Sistemas Lineales</div>
+    <a class="nav-item" onclick="showPanel('gauss',this)">Eliminacion Gaussiana</a>
+    <a class="nav-item" onclick="showPanel('gauss-seidel',this)">Gauss-Seidel</a>
+</nav>
+
+<div class="main">
+
+<!-- ==================== BISECCION ==================== -->
+<div class="method-panel active" id="panel-biseccion">
+    <h2>Metodo de Biseccion</h2>
+    <p class="subtitle">Busqueda binaria de raices - Clase 1</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="bis-fx" value="x^3 - x - 2"></div>
+            <div class="form-group"><label>a</label><input type="text" id="bis-a" value="1" step="any"></div>
+            <div class="form-group"><label>b</label><input type="text" id="bis-b" value="2" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Tolerancia</label><input type="text" id="bis-tol" value="0.0001"></div>
+            <div class="form-group"><label>Max iter</label><input type="text" id="bis-maxiter" value="50"></div>
+        </div>
+        <p class="formula-hint">Funciones: sin(x), cos(x), exp(x), log(x), sqrt(x), abs(x), tan(x), x^n</p>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runBiseccion()">Ejecutar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('biseccion')">Limpiar</button>
+        </div>
+        <div id="bis-result"></div>
+    </div>
+    <div class="card"><h3>Tabla de iteraciones</h3><div class="table-container" id="bis-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="bis-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== PUNTO FIJO ==================== -->
+<div class="method-panel" id="panel-punto-fijo">
+    <h2>Metodo del Punto Fijo</h2>
+    <p class="subtitle">Contracciones: itera x = g(x) - Clase 1</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>g(x)</label><input type="text" id="pf-gx" value="(x + 2)^(1/3)"></div>
+            <div class="form-group"><label>x0</label><input type="text" id="pf-x0" value="1.5" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Tolerancia</label><input type="text" id="pf-tol" value="0.0001"></div>
+            <div class="form-group"><label>Max iter</label><input type="text" id="pf-maxiter" value="50"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runPuntoFijo()">Ejecutar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('punto-fijo')">Limpiar</button>
+        </div>
+        <div id="pf-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="pf-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="pf-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== NEWTON ==================== -->
+<div class="method-panel" id="panel-newton">
+    <h2>Metodo de Newton-Raphson</h2>
+    <p class="subtitle">Convergencia cuadratica - Clase 2</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="nr-fx" value="x^3 - x - 2"></div>
+            <div class="form-group" style="flex:2"><label>f'(x)</label><input type="text" id="nr-dfx" value="3*x^2 - 1"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="nr-x0" value="1.5" step="any"></div>
+            <div class="form-group"><label>Tolerancia</label><input type="text" id="nr-tol" value="0.0001"></div>
+            <div class="form-group"><label>Max iter</label><input type="text" id="nr-maxiter" value="50"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runNewton()">Ejecutar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('newton')">Limpiar</button>
+        </div>
+        <div id="nr-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="nr-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="nr-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== AITKEN ==================== -->
+<div class="method-panel" id="panel-aitken">
+    <h2>Aceleracion de Aitken (Delta^2)</h2>
+    <p class="subtitle">Acelera convergencia lineal a cuadratica - Clase 2</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="info-text">Aplica Aitken sobre punto fijo x = g(x). Genera la sucesion {x_n} y luego la acelera con:<br>
+        <span class="formula-block">x_n^* = x_n - (x_{n+1} - x_n)^2 / (x_{n+2} - 2*x_{n+1} + x_n)</span></div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>g(x)</label><input type="text" id="ait-gx" value="(x + 2)^(1/3)"></div>
+            <div class="form-group"><label>x0</label><input type="text" id="ait-x0" value="1.5" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Tolerancia</label><input type="text" id="ait-tol" value="0.0001"></div>
+            <div class="form-group"><label>Max iter</label><input type="text" id="ait-maxiter" value="50"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runAitken()">Aitken (Delta^2)</button>
+            <button class="btn btn-primary" style="background:#9334e6" onclick="runSteffensen()">Steffensen</button>
+            <button class="btn btn-secondary" onclick="clearPanel('aitken')">Limpiar</button>
+        </div>
+        <div id="ait-result"></div>
+    </div>
+    <div class="card"><h3>Tabla comparativa: Punto Fijo vs Aitken / Steffensen</h3><div class="table-container" id="ait-table"></div></div>
+    <div class="card"><h3>Grafica de convergencia</h3><div class="chart-container"><canvas id="ait-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== LAGRANGE ==================== -->
+<div class="method-panel" id="panel-lagrange">
+    <h2>Interpolacion de Lagrange</h2>
+    <p class="subtitle">Existencia y unicidad del polinomio interpolante - Clase 3</p>
+    <div class="card">
+        <h3>Puntos</h3>
+        <div class="form-row">
+            <div class="form-group"><label>x (separados por coma)</label><input type="text" id="lag-x" value="0, 1, 2, 3"></div>
+            <div class="form-group"><label>y (separados por coma)</label><input type="text" id="lag-y" value="1, 2.718, 7.389, 20.086"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Evaluar en x =</label><input type="text" id="lag-eval" value="1.5" step="any"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runLagrange()">Interpolar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('lagrange')">Limpiar</button>
+        </div>
+        <div id="lag-result"></div>
+    </div>
+    <div class="card"><h3>Grafica</h3><div id="lag-poly"></div><div class="chart-container"><canvas id="lag-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== NEWTON INTERP ==================== -->
+<div class="method-panel" id="panel-newton-interp">
+    <h2>Interpolacion de Newton</h2>
+    <p class="subtitle">Diferencias divididas - Clase 3</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group"><label>x</label><input type="text" id="ni-x" value="1, 2, 4, 7"></div>
+            <div class="form-group"><label>y</label><input type="text" id="ni-y" value="1, 4, 16, 49"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Evaluar en x =</label><input type="text" id="ni-eval" value="3" step="any"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runNewtonInterp()">Interpolar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('newton-interp')">Limpiar</button>
+        </div>
+        <div id="ni-result"></div>
+    </div>
+    <div class="card"><h3>Tabla de diferencias divididas</h3><div class="table-container" id="ni-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="ni-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== DERIVACION NUMERICA ==================== -->
+<div class="method-panel" id="panel-derivacion">
+    <h2>Derivacion Numerica</h2>
+    <p class="subtitle">Diferencias finitas: forward, backward, central + paso optimo - Clase 3</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="info-text">Aproxima f'(x0) con distintos esquemas. Tambien calcula f''(x0) con diferencias centradas.</div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="der-fx" value="sin(x)"></div>
+            <div class="form-group"><label>x0</label><input type="text" id="der-x0" value="1" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="der-h" value="0.1" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f'(x) exacta (opcional, para error)</label><input type="text" id="der-exact" value="cos(x)"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runDerivacion()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('derivacion')">Limpiar</button>
+        </div>
+        <div id="der-result"></div>
+    </div>
+    <div class="card"><h3>Tabla: variacion de h (paso optimo)</h3><div class="table-container" id="der-table"></div></div>
+    <div class="card"><h3>Error vs h (escala log-log)</h3><div class="chart-container"><canvas id="der-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== RECTANGULOS ==================== -->
+<div class="method-panel" id="panel-rectangulos">
+    <h2>Regla de Rectangulos</h2>
+    <p class="subtitle">Izquierda, derecha y punto medio - Clase 5</p>
+    <div class="card">
+        <h3>Parametros</h3>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="rect-fx" value="sin(x)"></div>
+            <div class="form-group"><label>a</label><input type="text" id="rect-a" value="0" step="any"></div>
+            <div class="form-group"><label>b</label><input type="text" id="rect-b" value="3.14159" step="any"></div>
+            <div class="form-group"><label>n</label><input type="text" id="rect-n" value="10" min="1"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>Tipo</label>
+                <select id="rect-tipo">
+                    <option value="left">Izquierda</option>
+                    <option value="right">Derecha</option>
+                    <option value="mid" selected>Punto Medio</option>
+                </select>
+            </div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runRectangulos()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('rectangulos')">Limpiar</button>
+        </div>
+        <div id="rect-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="rect-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="rect-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== TRAPECIO ==================== -->
+<div class="method-panel" id="panel-trapecio">
+    <h2>Regla del Trapecio</h2>
+    <p class="subtitle">Aproximacion con trapecios - Clase 5</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="trap-fx" value="sin(x)"></div>
+            <div class="form-group"><label>a</label><input type="text" id="trap-a" value="0" step="any"></div>
+            <div class="form-group"><label>b</label><input type="text" id="trap-b" value="3.14159" step="any"></div>
+            <div class="form-group"><label>n</label><input type="text" id="trap-n" value="10" min="1"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runTrapecio()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('trapecio')">Limpiar</button>
+        </div>
+        <div id="trap-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="trap-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="trap-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== SIMPSON ==================== -->
+<div class="method-panel" id="panel-simpson">
+    <h2>Regla de Simpson 1/3</h2>
+    <p class="subtitle">Aproximacion con parabolas - Clase 5</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="simp-fx" value="exp(-x^2)"></div>
+            <div class="form-group"><label>a</label><input type="text" id="simp-a" value="0" step="any"></div>
+            <div class="form-group"><label>b</label><input type="text" id="simp-b" value="1" step="any"></div>
+            <div class="form-group"><label>n (par)</label><input type="text" id="simp-n" value="10" min="2" step="2"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runSimpson()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('simpson')">Limpiar</button>
+        </div>
+        <div id="simp-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="simp-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="simp-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== MONTECARLO ==================== -->
+<div class="method-panel" id="panel-montecarlo">
+    <h2>Integracion Montecarlo</h2>
+    <p class="subtitle">Estimadores, varianza, intervalos de confianza - Clase 6</p>
+    <div class="card">
+        <h3>Integracion 1D</h3>
+        <div class="info-text">Estima la integral de f(x) en [a,b] con N puntos aleatorios. Muestra intervalo de confianza al 95%.</div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x)</label><input type="text" id="mc-fx" value="sin(x)"></div>
+            <div class="form-group"><label>a</label><input type="text" id="mc-a" value="0" step="any"></div>
+            <div class="form-group"><label>b</label><input type="text" id="mc-b" value="3.14159" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>N (muestras)</label><input type="text" id="mc-n" value="10000" min="100"></div>
+            <div class="form-group"><label>Semilla (0=aleatorio)</label><input type="text" id="mc-seed" value="0" min="0"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runMontecarlo1D()">Estimar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('montecarlo')">Limpiar</button>
+        </div>
+        <div id="mc-result"></div>
+    </div>
+    <div class="card">
+        <h3>Integracion Multi-D (2D)</h3>
+        <div class="info-text">Estima integral doble de f(x,y) en [ax,bx] x [ay,by].</div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y)</label><input type="text" id="mc2-fxy" value="x^2 + y^2"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>ax</label><input type="text" id="mc2-ax" value="0" step="any"></div>
+            <div class="form-group"><label>bx</label><input type="text" id="mc2-bx" value="1" step="any"></div>
+            <div class="form-group"><label>ay</label><input type="text" id="mc2-ay" value="0" step="any"></div>
+            <div class="form-group"><label>by</label><input type="text" id="mc2-by" value="1" step="any"></div>
+            <div class="form-group"><label>N</label><input type="text" id="mc2-n" value="50000" min="100"></div>
+        </div>
+        <div class="btn-group"><button class="btn btn-primary" onclick="runMontecarlo2D()">Estimar 2D</button></div>
+        <div id="mc2-result"></div>
+    </div>
+    <div class="card"><h3>Convergencia 1D vs N</h3><div class="chart-container"><canvas id="mc-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== EULER ==================== -->
+<div class="method-panel" id="panel-euler">
+    <h2>Metodo de Euler</h2>
+    <p class="subtitle">EDOs: dy/dx = f(x,y) - Clase 7</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y) = dy/dx</label><input type="text" id="euler-fxy" value="x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="euler-x0" value="0" step="any"></div>
+            <div class="form-group"><label>y0</label><input type="text" id="euler-y0" value="1" step="any"></div>
+            <div class="form-group"><label>x final</label><input type="text" id="euler-xf" value="2" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="euler-h" value="0.2" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>y(x) exacta (opcional, para error)</label><input type="text" id="euler-exact" value="2*exp(x) - x - 1" placeholder="Ej: 2*exp(x)-x-1"></div>
+        </div>
+        <p class="formula-hint">y_{n+1} = y_n + h * f(x_n, y_n)</p>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runEuler()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('euler')">Limpiar</button>
+        </div>
+        <div id="euler-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="euler-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="euler-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== EULER MODIFICADO ==================== -->
+<div class="method-panel" id="panel-euler-mod">
+    <h2>Euler Modificado (Heun)</h2>
+    <p class="subtitle">Predictor-corrector, orden 2 - Clase 7</p>
+    <div class="card">
+        <div class="info-text">
+            Predictor: y* = y_n + h*f(x_n, y_n)<br>
+            Corrector: y_{n+1} = y_n + h/2 * [f(x_n, y_n) + f(x_{n+1}, y*)]
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y)</label><input type="text" id="em-fxy" value="x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="em-x0" value="0" step="any"></div>
+            <div class="form-group"><label>y0</label><input type="text" id="em-y0" value="1" step="any"></div>
+            <div class="form-group"><label>x final</label><input type="text" id="em-xf" value="2" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="em-h" value="0.2" step="any"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runEulerMod()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('euler-mod')">Limpiar</button>
+        </div>
+        <div id="em-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="em-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="em-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== TAYLOR ==================== -->
+<div class="method-panel" id="panel-taylor">
+    <h2>Metodo de Taylor (orden 2)</h2>
+    <p class="subtitle">Usa f y f' (derivada total) para mayor precision - Clase 7</p>
+    <div class="card">
+        <div class="info-text">
+            y_{n+1} = y_n + h*f(x_n,y_n) + (h^2/2)*f'(x_n,y_n)<br>
+            Donde f' es la derivada total: df/dx = df/dx_parcial + df/dy_parcial * f
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y) = dy/dx</label><input type="text" id="tay-fxy" value="x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f'(x,y) = derivada total</label><input type="text" id="tay-dfxy" value="1 + x + y"></div>
+        </div>
+        <div class="info-text">Para f=x+y: df/dx_parcial=1, df/dy_parcial=1, entonces f'= 1 + 1*f = 1 + (x+y)</div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="tay-x0" value="0" step="any"></div>
+            <div class="form-group"><label>y0</label><input type="text" id="tay-y0" value="1" step="any"></div>
+            <div class="form-group"><label>x final</label><input type="text" id="tay-xf" value="2" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="tay-h" value="0.2" step="any"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runTaylor()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('taylor')">Limpiar</button>
+        </div>
+        <div id="tay-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="tay-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="tay-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== RUNGE-KUTTA ==================== -->
+<div class="method-panel" id="panel-runge-kutta">
+    <h2>Runge-Kutta (RK4)</h2>
+    <p class="subtitle">Orden 4, alta precision - Clase 7</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y)</label><input type="text" id="rk-fxy" value="x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="rk-x0" value="0" step="any"></div>
+            <div class="form-group"><label>y0</label><input type="text" id="rk-y0" value="1" step="any"></div>
+            <div class="form-group"><label>x final</label><input type="text" id="rk-xf" value="2" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="rk-h" value="0.2" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>y(x) exacta (opcional)</label><input type="text" id="rk-exact" value="2*exp(x) - x - 1" placeholder="Ej: 2*exp(x)-x-1"></div>
+        </div>
+        <div class="formula-block">k1=h*f(x,y)  k2=h*f(x+h/2,y+k1/2)  k3=h*f(x+h/2,y+k2/2)  k4=h*f(x+h,y+k3)<br>y_{n+1} = y_n + (k1+2k2+2k3+k4)/6</div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runRK4()">Calcular</button>
+            <button class="btn btn-secondary" onclick="clearPanel('runge-kutta')">Limpiar</button>
+        </div>
+        <div id="rk-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="rk-table"></div></div>
+    <div class="card"><h3>Grafica</h3><div class="chart-container"><canvas id="rk-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== CAMPO DE DIRECCIONES ==================== -->
+<div class="method-panel" id="panel-campo-dir">
+    <h2>Campo de Direcciones (Slope Field)</h2>
+    <p class="subtitle">Visualiza dy/dx = f(x,y) como pendientes en cada punto - Clase 7</p>
+    <div class="card">
+        <div class="info-text">Dibuja segmentos con pendiente f(x,y) en una grilla. Click en la grafica para trazar una solucion desde ese punto (Euler hacia adelante y atras).</div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>dy/dx = f(x,y)</label><input type="text" id="cd-fxy" value="x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x min</label><input type="text" id="cd-xmin" value="-2" step="any"></div>
+            <div class="form-group"><label>x max</label><input type="text" id="cd-xmax" value="2" step="any"></div>
+            <div class="form-group"><label>y min</label><input type="text" id="cd-ymin" value="-2" step="any"></div>
+            <div class="form-group"><label>y max</label><input type="text" id="cd-ymax" value="2" step="any"></div>
+            <div class="form-group"><label>Densidad grilla</label><input type="text" id="cd-density" value="20" min="5" max="40"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runCampoDir()">Dibujar Campo</button>
+            <button class="btn btn-secondary" onclick="runCampoDir()">Limpiar trayectorias</button>
+        </div>
+        <div id="cd-result"></div>
+    </div>
+    <div class="card"><h3>Campo de direcciones (click para trazar soluciones)</h3><div class="chart-container" style="height:520px"><canvas id="cd-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== COMPARAR EDOS ==================== -->
+<div class="method-panel" id="panel-edo-comp">
+    <h2>Comparacion de Metodos EDO</h2>
+    <p class="subtitle">Euler vs Euler Modificado vs Taylor vs RK4 en un solo grafico - Clase 7</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y) = dy/dx</label><input type="text" id="cmp-fxy" value="x + y"></div>
+            <div class="form-group" style="flex:2"><label>f'(x,y) para Taylor</label><input type="text" id="cmp-dfxy" value="1 + x + y"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>x0</label><input type="text" id="cmp-x0" value="0" step="any"></div>
+            <div class="form-group"><label>y0</label><input type="text" id="cmp-y0" value="1" step="any"></div>
+            <div class="form-group"><label>x final</label><input type="text" id="cmp-xf" value="2" step="any"></div>
+            <div class="form-group"><label>h</label><input type="text" id="cmp-h" value="0.2" step="any"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>Solucion exacta y(x) (opcional, para error)</label><input type="text" id="cmp-exact" value="2*exp(x) - x - 1"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runEDOComp()">Comparar</button>
+            <button class="btn btn-secondary" onclick="clearPanel('edo-comp')">Limpiar</button>
+        </div>
+        <div id="cmp-result"></div>
+    </div>
+    <div class="card"><h3>Tabla comparativa</h3><div class="table-container" id="cmp-table"></div></div>
+    <div class="card"><h3>Graficas: soluciones y errores</h3><div class="chart-container" style="height:480px"><canvas id="cmp-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== EDP ==================== -->
+<div class="method-panel" id="panel-edp">
+    <h2>EDP - Diferencias Finitas</h2>
+    <p class="subtitle">Ecuacion de Laplace/Poisson con valores en la frontera - Clase 7</p>
+    <div class="card">
+        <h3>Problema: -u_xx - u_yy = f(x,y) en [0,1]x[0,1]</h3>
+        <div class="info-text">
+            Resuelve la ecuacion de Poisson con condiciones de Dirichlet (valores fijos en la frontera).
+            Se discretiza con diferencias centradas de segundo orden.
+        </div>
+        <div class="form-row">
+            <div class="form-group" style="flex:2"><label>f(x,y) (fuente, 0 para Laplace)</label><input type="text" id="edp-fxy" value="0"></div>
+            <div class="form-group"><label>N (puntos interiores)</label><input type="text" id="edp-n" value="10" min="3" max="40"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>u(x,0) - borde inferior</label><input type="text" id="edp-bottom" value="sin(pi*x)"></div>
+            <div class="form-group"><label>u(x,1) - borde superior</label><input type="text" id="edp-top" value="0"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>u(0,y) - borde izquierdo</label><input type="text" id="edp-left" value="0"></div>
+            <div class="form-group"><label>u(1,y) - borde derecho</label><input type="text" id="edp-right" value="0"></div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runEDP()">Resolver</button>
+            <button class="btn btn-secondary" onclick="clearPanel('edp')">Limpiar</button>
+        </div>
+        <div id="edp-result"></div>
+    </div>
+    <div class="card"><h3>Mapa de calor de la solucion u(x,y)</h3><div class="chart-container" style="height:450px"><canvas id="edp-chart"></canvas></div></div>
+</div>
+
+<!-- ==================== GAUSS ==================== -->
+<div class="method-panel" id="panel-gauss">
+    <h2>Eliminacion Gaussiana</h2>
+    <p class="subtitle">Sistemas lineales Ax = b con pivoteo parcial</p>
+    <div class="card">
+        <h3>Sistema</h3>
+        <div class="form-row">
+            <div class="form-group" style="max-width:120px"><label>n</label>
+                <select id="gauss-n" onchange="buildGaussMatrix()"><option value="2">2x2</option><option value="3" selected>3x3</option><option value="4">4x4</option><option value="5">5x5</option></select>
+            </div>
+        </div>
+        <div class="info-text">Matriz aumentada [A | b]:</div>
+        <div id="gauss-matrix"></div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runGauss()">Resolver</button>
+            <button class="btn btn-secondary" onclick="buildGaussMatrix()">Reiniciar</button>
+        </div>
+        <div id="gauss-result"></div>
+    </div>
+    <div class="card"><h3>Pasos</h3><div id="gauss-steps"></div></div>
+</div>
+
+<!-- ==================== GAUSS-SEIDEL ==================== -->
+<div class="method-panel" id="panel-gauss-seidel">
+    <h2>Gauss-Seidel</h2>
+    <p class="subtitle">Metodo iterativo para sistemas lineales</p>
+    <div class="card">
+        <div class="form-row">
+            <div class="form-group" style="max-width:120px"><label>n</label>
+                <select id="gs-n" onchange="buildGSMatrix()"><option value="2">2x2</option><option value="3" selected>3x3</option><option value="4">4x4</option></select>
+            </div>
+            <div class="form-group"><label>Tolerancia</label><input type="text" id="gs-tol" value="0.0001"></div>
+            <div class="form-group"><label>Max iter</label><input type="text" id="gs-maxiter" value="50"></div>
+        </div>
+        <div id="gs-matrix"></div>
+        <div class="btn-group">
+            <button class="btn btn-primary" onclick="runGaussSeidel()">Resolver</button>
+            <button class="btn btn-secondary" onclick="buildGSMatrix()">Reiniciar</button>
+        </div>
+        <div id="gs-result"></div>
+    </div>
+    <div class="card"><h3>Tabla</h3><div class="table-container" id="gs-table"></div></div>
+</div>
+
+</div><!-- end main -->
+
+<script>
+// ========== UTILIDADES ==========
+function evalF(expr, scope) {
+    try {
+        if (typeof math === 'undefined') { alert('Error: math.js no cargó. Verifica tu conexión a internet.'); return NaN; }
+        const r = math.evaluate(expr, scope);
+        return typeof r === 'number' ? r : NaN;
+    } catch(e) { return NaN; }
+}
+// Lee un input y evalua su contenido como expresion matematica (acepta pi/10, sqrt(2), coma decimal, etc.)
+function PF(id) {
+    const el = document.getElementById(id); if (!el) return NaN;
+    let v = (el.value ?? '').toString().trim();
+    if (v === '') return NaN;
+    // Soporte coma decimal: "0,2" -> "0.2" (solo si no hay punto ya)
+    if (v.indexOf(',') !== -1 && v.indexOf('.') === -1) v = v.replace(/,/g, '.');
+    try {
+        if (typeof math !== 'undefined') {
+            const r = math.evaluate(v);
+            if (typeof r === 'number' && !isNaN(r)) return r;
+        }
+    } catch(e) {}
+    return parseFloat(v);
+}
+function showPanel(id, el) {
+    document.querySelectorAll('.method-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + id).classList.add('active');
+    if (el) el.classList.add('active');
+}
+function clearPanel(id) {
+    const p = document.getElementById('panel-' + id);
+    p.querySelectorAll('.table-container').forEach(t => t.innerHTML = '');
+    p.querySelectorAll('[id$="-result"]').forEach(r => r.innerHTML = '');
+    p.querySelectorAll('[id$="-poly"]').forEach(r => r.innerHTML = '');
+    p.querySelectorAll('[id$="-steps"]').forEach(r => r.innerHTML = '');
+    p.querySelectorAll('canvas').forEach(c => { c.getContext('2d').clearRect(0,0,c.width,c.height); });
+}
+function resHTML(text, err) { return `<div class="result-box ${err?'error':''}">${text}</div>`; }
+function fmt(n, d=8) {
+    if (typeof n!=='number'||isNaN(n)) return 'NaN';
+    if (!isFinite(n)) return n>0?'+Inf':'-Inf';
+    return Number(n.toFixed(d)).toString();
+}
+
+// ========== ZOOM / PAN SYSTEM ==========
+const zoomRegistry = {};
+
+function registerZoom(canvasId, redrawFn, bounds) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const entry = {
+        redrawFn,
+        orig: { ...bounds },
+        cur: { ...bounds },
+        panning: false, panStart: null, boundsStart: null
+    };
+    zoomRegistry[canvasId] = entry;
+
+    // Remove old listeners by replacing canvas event handlers
+    canvas.onwheel = function(e) {
+        e.preventDefault();
+        const ent = zoomRegistry[canvasId]; if (!ent) return;
+        const rect = canvas.getBoundingClientRect();
+        const mg = { left: 55, top: 20, right: 20, bottom: 40 };
+        const cw = rect.width - mg.left - mg.right, ch = rect.height - mg.top - mg.bottom;
+        const mx = (e.clientX - rect.left - mg.left) / cw; // 0..1 position in chart area
+        const my = 1 - (e.clientY - rect.top - mg.top) / ch;
+        const factor = e.deltaY > 0 ? 1.15 : 0.87; // zoom out / zoom in
+        const b = ent.cur;
+        const xAt = b.xMin + mx * (b.xMax - b.xMin);
+        const yAt = b.yMin + my * (b.yMax - b.yMin);
+        ent.cur = {
+            xMin: xAt - (xAt - b.xMin) * factor,
+            xMax: xAt + (b.xMax - xAt) * factor,
+            yMin: yAt - (yAt - b.yMin) * factor,
+            yMax: yAt + (b.yMax - yAt) * factor
+        };
+        ent.redrawFn(ent.cur);
+    };
+
+    canvas.onmousedown = function(e) {
+        if (e.button !== 0) return;
+        const ent = zoomRegistry[canvasId]; if (!ent) return;
+        ent.panning = true;
+        ent.panStart = { x: e.clientX, y: e.clientY };
+        ent.boundsStart = { ...ent.cur };
+        canvas.style.cursor = 'grabbing';
+    };
+
+    canvas.onmousemove = function(e) {
+        const ent = zoomRegistry[canvasId];
+        if (!ent || !ent.panning) { canvas.style.cursor = 'grab'; return; }
+        const rect = canvas.getBoundingClientRect();
+        const mg = { left: 55, top: 20, right: 20, bottom: 40 };
+        const cw = rect.width - mg.left - mg.right, ch = rect.height - mg.top - mg.bottom;
+        const dxPx = e.clientX - ent.panStart.x, dyPx = e.clientY - ent.panStart.y;
+        const bs = ent.boundsStart;
+        const dxData = -dxPx / cw * (bs.xMax - bs.xMin);
+        const dyData = dyPx / ch * (bs.yMax - bs.yMin);
+        ent.cur = { xMin: bs.xMin + dxData, xMax: bs.xMax + dxData, yMin: bs.yMin + dyData, yMax: bs.yMax + dyData };
+        ent.redrawFn(ent.cur);
+    };
+
+    canvas.onmouseup = canvas.onmouseleave = function() {
+        const ent = zoomRegistry[canvasId]; if (!ent) return;
+        ent.panning = false;
+        canvas.style.cursor = 'grab';
+    };
+
+    canvas.ondblclick = function(e) {
+        e.preventDefault();
+        const ent = zoomRegistry[canvasId]; if (!ent) return;
+        ent.cur = { ...ent.orig };
+        ent.redrawFn(ent.cur);
+    };
+
+    canvas.style.cursor = 'grab';
+
+    // Add hint text if not already present
+    const parent = canvas.parentElement;
+    if (!parent.querySelector('.zoom-hint')) {
+        const hint = document.createElement('div');
+        hint.className = 'zoom-hint';
+        hint.style.cssText = 'font-size:10px;color:#999;text-align:center;margin-top:4px';
+        hint.textContent = 'Scroll = zoom | Arrastrar = mover | DblClick = reset';
+        parent.appendChild(hint);
+    }
+}
+
+// ========== GRAFICAS ==========
+function drawChart(canvasId, config) {
+    const canvas = document.getElementById(canvasId);
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+    const m = { top: 20, right: 20, bottom: 40, left: 55 };
+    const cw = W - m.left - m.right, ch = H - m.top - m.bottom;
+    ctx.clearRect(0,0,W,H); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+    let xMin=config.xMin, xMax=config.xMax, yMin=config.yMin, yMax=config.yMax;
+    if (xMin===undefined||xMax===undefined||yMin===undefined||yMax===undefined) {
+        let aX=[],aY=[];
+        config.datasets.forEach(ds => { ds.x.forEach(v=>{if(isFinite(v))aX.push(v)}); ds.y.forEach(v=>{if(isFinite(v))aY.push(v)}); });
+        if(!aX.length||!aY.length){ctx.fillStyle='#d93025';ctx.font='14px system-ui';ctx.textAlign='center';ctx.fillText('Sin datos validos. Verifique la funcion ingresada.',W/2,H/2);return;}
+        if(xMin===undefined) xMin=Math.min(...aX); if(xMax===undefined) xMax=Math.max(...aX);
+        if(yMin===undefined) yMin=Math.min(...aY); if(yMax===undefined) yMax=Math.max(...aY);
+    }
+    let xP=(xMax-xMin)*0.05||1, yP=(yMax-yMin)*0.08||1;
+    xMin-=xP; xMax+=xP; yMin-=yP; yMax+=yP;
+    function tx(x){return m.left+(x-xMin)/(xMax-xMin)*cw}
+    function ty(y){return m.top+ch-(y-yMin)/(yMax-yMin)*ch}
+    ctx.strokeStyle='#f0f0f0'; ctx.lineWidth=1;
+    for(let i=0;i<=8;i++){const x=tx(xMin+(xMax-xMin)*i/8); ctx.beginPath();ctx.moveTo(x,m.top);ctx.lineTo(x,m.top+ch);ctx.stroke();}
+    for(let i=0;i<=6;i++){const y=ty(yMin+(yMax-yMin)*i/6); ctx.beginPath();ctx.moveTo(m.left,y);ctx.lineTo(m.left+cw,y);ctx.stroke();}
+    ctx.strokeStyle='#999'; ctx.lineWidth=1;
+    if(yMin<=0&&yMax>=0){const y0=ty(0);ctx.beginPath();ctx.moveTo(m.left,y0);ctx.lineTo(m.left+cw,y0);ctx.stroke();}
+    if(xMin<=0&&xMax>=0){const x0=tx(0);ctx.beginPath();ctx.moveTo(x0,m.top);ctx.lineTo(x0,m.top+ch);ctx.stroke();}
+    ctx.fillStyle='#666'; ctx.font='11px system-ui'; ctx.textAlign='center';
+    for(let i=0;i<=8;i++){const v=xMin+(xMax-xMin)*i/8; ctx.fillText(fmt(v,3),tx(v),m.top+ch+16);}
+    ctx.textAlign='right';
+    for(let i=0;i<=6;i++){const v=yMin+(yMax-yMin)*i/6; ctx.fillText(fmt(v,3),m.left-6,ty(v)+4);}
+    ctx.save(); ctx.beginPath(); ctx.rect(m.left,m.top,cw,ch); ctx.clip();
+    if(config.fills) config.fills.forEach(f=>{ctx.fillStyle=f.color||'rgba(26,115,232,0.15)';ctx.beginPath();f.x.forEach((x,i)=>{const px=tx(x),py=ty(f.y[i]);i===0?ctx.moveTo(px,py):ctx.lineTo(px,py)});ctx.closePath();ctx.fill()});
+    const colors=['#1a73e8','#d93025','#0d904f','#e37400','#9334e6','#00897b'];
+    config.datasets.forEach((ds,di)=>{
+        const c=ds.color||colors[di%colors.length];
+        if(ds.type!=='scatter'){ctx.strokeStyle=c;ctx.lineWidth=ds.lineWidth||2;ds.dash?ctx.setLineDash(ds.dash):ctx.setLineDash([]);ctx.beginPath();let s=false;for(let i=0;i<ds.x.length;i++){if(!isFinite(ds.y[i])){s=false;continue}const px=tx(ds.x[i]),py=ty(ds.y[i]);s?ctx.lineTo(px,py):(ctx.moveTo(px,py),s=true)}ctx.stroke();ctx.setLineDash([])}
+        if(ds.type==='scatter'||ds.showPoints){ctx.fillStyle=c;for(let i=0;i<ds.x.length;i++){if(!isFinite(ds.y[i]))continue;ctx.beginPath();ctx.arc(tx(ds.x[i]),ty(ds.y[i]),ds.pointRadius||4,0,Math.PI*2);ctx.fill()}}
+    });
+    if(config.verticalLines) config.verticalLines.forEach(vl=>{ctx.strokeStyle=vl.color||'#d93025';ctx.lineWidth=1;ctx.setLineDash(vl.dash||[4,4]);const px=tx(vl.x);ctx.beginPath();ctx.moveTo(px,m.top);ctx.lineTo(px,m.top+ch);ctx.stroke();ctx.setLineDash([])});
+    ctx.restore();
+    if(config.datasets.some(d=>d.label)){let lx=m.left+10,ly=m.top+14;ctx.font='12px system-ui';config.datasets.forEach((ds,di)=>{if(!ds.label)return;const c=ds.color||colors[di%colors.length];ctx.fillStyle=c;ctx.fillRect(lx,ly-8,14,3);ctx.fillStyle='#333';ctx.textAlign='left';ctx.fillText(ds.label,lx+18,ly);ly+=18})}
+    // Register zoom
+    registerZoom(canvasId, function(b) {
+        drawChart(canvasId, Object.assign({}, config, { xMin: b.xMin, xMax: b.xMax, yMin: b.yMin, yMax: b.yMax }));
+    }, { xMin, xMax, yMin, yMax });
+}
+function plotFunc(cid,expr,xMin,xMax,extras={}){
+    const n=300,xs=[],ys=[],dx=(xMax-xMin)/n;
+    for(let i=0;i<=n;i++){const x=xMin+i*dx;xs.push(x);ys.push(evalF(expr,{x}))}
+    const ds=[{x:xs,y:ys,label:'f(x)',color:'#1a73e8'}];
+    if(extras.datasets)ds.push(...extras.datasets);
+    drawChart(cid,{datasets:ds,fills:extras.fills,verticalLines:extras.verticalLines});
+}
+
+// ========== BISECCION ==========
+function runBiseccion(){
+    const expr=document.getElementById('bis-fx').value;
+    let a=PF('bis-a'),b=PF('bis-b');
+    const tol=PF('bis-tol'),maxI=parseInt(document.getElementById('bis-maxiter').value);
+    const fa0=evalF(expr,{x:a}),fb0=evalF(expr,{x:b});
+    if(isNaN(fa0)||isNaN(fb0)){document.getElementById('bis-result').innerHTML=resHTML('Error: funcion invalida o no evaluable en a o b.',true);return}
+    if(fa0*fb0>0){document.getElementById('bis-result').innerHTML=resHTML('Error: f(a)*f(b) debe ser < 0',true);return}
+    const rows=[];let c,fc;const oA=a,oB=b;
+    for(let i=1;i<=maxI;i++){c=(a+b)/2;fc=evalF(expr,{x:c});const err=Math.abs(b-a)/2;rows.push({i,a,b,c,fa:evalF(expr,{x:a}),fc,error:err});if(Math.abs(fc)<1e-15||err<tol)break;evalF(expr,{x:a})*fc<0?b=c:a=c}
+    const L=rows[rows.length-1];
+    document.getElementById('bis-result').innerHTML=resHTML(`<b>Raiz:</b> x = ${fmt(L.c,10)} | <b>f(x)=</b>${fmt(L.fc)} | <b>Iter:</b> ${L.i} | <b>Error:</b> ${fmt(L.error)}`);
+    let h='<table><tr><th>n</th><th>a</th><th>b</th><th>c</th><th>f(a)</th><th>f(c)</th><th>Error</th></tr>';
+    rows.forEach(r=>{h+=`<tr><td>${r.i}</td><td>${fmt(r.a)}</td><td>${fmt(r.b)}</td><td>${fmt(r.c)}</td><td>${fmt(r.fa)}</td><td>${fmt(r.fc)}</td><td>${fmt(r.error)}</td></tr>`});
+    document.getElementById('bis-table').innerHTML=h+'</table>';
+    plotFunc('bis-chart',expr,oA-0.5,oB+0.5,{datasets:[{x:rows.map(r=>r.c),y:rows.map(r=>r.fc),type:'scatter',label:'Iter',color:'#d93025',pointRadius:5}],verticalLines:[{x:L.c,color:'#0d904f',dash:[6,3]}]});
+}
+
+// ========== PUNTO FIJO ==========
+function runPuntoFijo(){
+    const gx=document.getElementById('pf-gx').value;let x=PF('pf-x0');
+    const tol=PF('pf-tol'),maxI=parseInt(document.getElementById('pf-maxiter').value);
+    const rows=[];
+    for(let i=1;i<=maxI;i++){const xN=evalF(gx,{x});const err=Math.abs(xN-x);rows.push({i,x,gx:xN,error:err});if(isNaN(xN)||!isFinite(xN)){document.getElementById('pf-result').innerHTML=resHTML('Diverge',true);return}x=xN;if(err<tol)break}
+    const L=rows[rows.length-1];
+    document.getElementById('pf-result').innerHTML=resHTML(`<b>Punto fijo:</b> x = ${fmt(L.gx,10)} | <b>Iter:</b> ${L.i} | <b>Error:</b> ${fmt(L.error)}`);
+    let h='<table><tr><th>n</th><th>x_n</th><th>g(x_n)</th><th>Error</th></tr>';
+    rows.forEach(r=>{h+=`<tr><td>${r.i}</td><td>${fmt(r.x)}</td><td>${fmt(r.gx)}</td><td>${fmt(r.error)}</td></tr>`});
+    document.getElementById('pf-table').innerHTML=h+'</table>';
+    const allX=rows.map(r=>r.x).concat(rows.map(r=>r.gx));const mn=Math.min(...allX)-0.5,mx=Math.max(...allX)+0.5;
+    const n=200,xs=[],ys=[],yx=[];for(let i=0;i<=n;i++){const xv=mn+(mx-mn)*i/n;xs.push(xv);ys.push(evalF(gx,{x:xv}));yx.push(xv)}
+    drawChart('pf-chart',{datasets:[{x:xs,y:ys,label:'g(x)',color:'#1a73e8'},{x:xs,y:yx,label:'y=x',color:'#999',dash:[5,5]},{x:rows.map(r=>r.x),y:rows.map(r=>r.gx),type:'scatter',label:'Iter',color:'#d93025',pointRadius:4}]});
+}
+
+// ========== NEWTON ==========
+function runNewton(){
+    const fx=document.getElementById('nr-fx').value,dfx=document.getElementById('nr-dfx').value;
+    let x=PF('nr-x0');const tol=PF('nr-tol'),maxI=parseInt(document.getElementById('nr-maxiter').value);
+    const rows=[];
+    for(let i=1;i<=maxI;i++){const fv=evalF(fx,{x}),dv=evalF(dfx,{x});if(Math.abs(dv)<1e-15){document.getElementById('nr-result').innerHTML=resHTML('Derivada~0',true);return}const xN=x-fv/dv;const err=Math.abs(xN-x);rows.push({i,x,fv,dv,xN,error:err});x=xN;if(err<tol)break}
+    const L=rows[rows.length-1];
+    document.getElementById('nr-result').innerHTML=resHTML(`<b>Raiz:</b> x = ${fmt(L.xN,10)} | <b>f(x)=</b>${fmt(evalF(fx,{x:L.xN}))} | <b>Iter:</b> ${L.i}`);
+    let h='<table><tr><th>n</th><th>x_n</th><th>f(x_n)</th><th>f\'(x_n)</th><th>x_{n+1}</th><th>Error</th></tr>';
+    rows.forEach(r=>{h+=`<tr><td>${r.i}</td><td>${fmt(r.x)}</td><td>${fmt(r.fv)}</td><td>${fmt(r.dv)}</td><td>${fmt(r.xN)}</td><td>${fmt(r.error)}</td></tr>`});
+    document.getElementById('nr-table').innerHTML=h+'</table>';
+    const rng=Math.max(Math.abs(L.xN-PF('nr-x0'))*2,2);
+    plotFunc('nr-chart',fx,L.xN-rng,L.xN+rng,{datasets:[{x:rows.map(r=>r.x),y:rows.map(r=>r.fv),type:'scatter',label:'Iter',color:'#d93025',pointRadius:5}],verticalLines:[{x:L.xN,color:'#0d904f',dash:[6,3]}]});
+}
+
+// ========== AITKEN ==========
+function runAitken(){
+    const gx=document.getElementById('ait-gx').value;let x=PF('ait-x0');
+    const tol=PF('ait-tol'),maxI=parseInt(document.getElementById('ait-maxiter').value);
+    // Generate fixed point sequence
+    const seq=[x];
+    for(let i=0;i<maxI+2;i++){x=evalF(gx,{x});if(!isFinite(x))break;seq.push(x)}
+    // Aitken acceleration
+    const aitken=[];
+    for(let n=0;n<seq.length-2;n++){
+        const s0=seq[n],s1=seq[n+1],s2=seq[n+2];
+        const denom=s2-2*s1+s0;
+        if(Math.abs(denom)<1e-15)break;
+        aitken.push(s0-(s1-s0)*(s1-s0)/denom);
+    }
+    // Build table
+    let html='<table><tr><th>n</th><th>x_n (P.Fijo)</th><th>x_n* (Aitken)</th><th>Error P.Fijo</th><th>Error Aitken</th></tr>';
+    const limit=Math.min(seq.length,aitken.length+2,maxI);
+    const pfErr=[],aitErr=[];
+    for(let n=0;n<limit;n++){
+        const pf=seq[n];const ait=n<aitken.length?aitken[n]:'-';
+        const epf=n>0?Math.abs(seq[n]-seq[n-1]):'-';
+        const eait=(n>0&&n<aitken.length)?Math.abs(aitken[n]-aitken[n-1]):'-';
+        if(typeof epf==='number')pfErr.push(epf);
+        if(typeof eait==='number')aitErr.push(eait);
+        html+=`<tr><td>${n}</td><td>${fmt(pf)}</td><td>${typeof ait==='number'?fmt(ait):'-'}</td><td>${typeof epf==='number'?fmt(epf):'-'}</td><td>${typeof eait==='number'?fmt(eait):'-'}</td></tr>`;
+        if(typeof eait==='number'&&eait<tol)break;
+    }
+    html+='</table>';
+    document.getElementById('ait-table').innerHTML=html;
+    const lastAit=aitken[aitken.length-1];
+    document.getElementById('ait-result').innerHTML=resHTML(`<b>P.Fijo final:</b> ${fmt(seq[Math.min(seq.length-1,limit)])} | <b>Aitken final:</b> ${fmt(lastAit,10)}`);
+    // Chart: convergence comparison
+    const ns=[];for(let i=1;i<pfErr.length;i++)ns.push(i);
+    drawChart('ait-chart',{datasets:[
+        {x:Array.from({length:pfErr.length},(_,i)=>i+1),y:pfErr,label:'Error P.Fijo',color:'#d93025',showPoints:true,pointRadius:3},
+        {x:Array.from({length:aitErr.length},(_,i)=>i+1),y:aitErr,label:'Error Aitken',color:'#0d904f',showPoints:true,pointRadius:3}
+    ]});
+}
+
+// ========== STEFFENSEN ==========
+function runSteffensen(){
+    const gx=document.getElementById('ait-gx').value;
+    let x=PF('ait-x0');
+    const tol=PF('ait-tol'),maxI=parseInt(document.getElementById('ait-maxiter').value);
+    // Steffensen: x_{n+1} = x_n - (g(x_n) - x_n)^2 / (g(g(x_n)) - 2*g(x_n) + x_n)
+    const rows=[];
+    for(let i=0;i<maxI;i++){
+        const g1=evalF(gx,{x});
+        const g2=evalF(gx,{x:g1});
+        const denom=g2-2*g1+x;
+        if(Math.abs(denom)<1e-15){rows.push({i,x,g1,g2,xNew:x,error:0});break}
+        const xNew=x-(g1-x)*(g1-x)/denom;
+        const err=Math.abs(xNew-x);
+        rows.push({i,x,g1,g2,xNew,error:err});
+        if(!isFinite(xNew)){document.getElementById('ait-result').innerHTML=resHTML('Steffensen diverge',true);return}
+        x=xNew;
+        if(err<tol)break;
+    }
+    const L=rows[rows.length-1];
+    document.getElementById('ait-result').innerHTML=resHTML(`<b>Steffensen:</b> x* = ${fmt(L.xNew,10)} | Iter: ${L.i+1} | Error: ${fmt(L.error)}<br><small>Convergencia cuadratica (como Newton pero sin derivada)</small>`);
+    let html='<table><tr><th>n</th><th>x_n</th><th>g(x_n)</th><th>g(g(x_n))</th><th>x_{n+1}</th><th>Error</th></tr>';
+    rows.forEach(r=>{html+=`<tr><td>${r.i}</td><td>${fmt(r.x)}</td><td>${fmt(r.g1)}</td><td>${fmt(r.g2)}</td><td>${fmt(r.xNew)}</td><td>${fmt(r.error)}</td></tr>`});
+    document.getElementById('ait-table').innerHTML=html+'</table>';
+    // Convergence chart
+    drawChart('ait-chart',{datasets:[
+        {x:rows.map(r=>r.i),y:rows.map(r=>r.error),label:'Error Steffensen',color:'#9334e6',showPoints:true,pointRadius:4}
+    ]});
+}
+
+// ========== LAGRANGE ==========
+function runLagrange(){
+    const xV=document.getElementById('lag-x').value.split(',').map(Number),yV=document.getElementById('lag-y').value.split(',').map(Number);
+    const eX=PF('lag-eval');
+    if(xV.length!==yV.length||xV.length<2){document.getElementById('lag-result').innerHTML=resHTML('Listas invalidas',true);return}
+    if(new Set(xV).size!==xV.length){document.getElementById('lag-result').innerHTML=resHTML('Error: valores de x deben ser distintos (hay duplicados)',true);return}
+    function lag(xp){let s=0;for(let i=0;i<xV.length;i++){let l=1;for(let j=0;j<xV.length;j++)if(i!==j)l*=(xp-xV[j])/(xV[i]-xV[j]);s+=yV[i]*l}return s}
+    const res=lag(eX);
+    document.getElementById('lag-result').innerHTML=resHTML(`<b>P(${eX}) =</b> ${fmt(res,10)}`);
+    const xMn=Math.min(...xV)-0.5,xMx=Math.max(...xV)+0.5,n=200,xs=[],ys=[];
+    for(let i=0;i<=n;i++){const xv=xMn+(xMx-xMn)*i/n;xs.push(xv);ys.push(lag(xv))}
+    drawChart('lag-chart',{datasets:[{x:xs,y:ys,label:'P(x)',color:'#1a73e8'},{x:xV,y:yV,type:'scatter',label:'Puntos',color:'#d93025',pointRadius:6},{x:[eX],y:[res],type:'scatter',label:`P(${eX})`,color:'#0d904f',pointRadius:7}]});
+}
+
+// ========== NEWTON INTERP ==========
+function runNewtonInterp(){
+    const xV=document.getElementById('ni-x').value.split(',').map(Number),yV=document.getElementById('ni-y').value.split(',').map(Number);
+    const eX=PF('ni-eval'),n=xV.length;
+    if(n!==yV.length||n<2){document.getElementById('ni-result').innerHTML=resHTML('Error: listas invalidas',true);return}
+    if(new Set(xV).size!==xV.length){document.getElementById('ni-result').innerHTML=resHTML('Error: valores de x deben ser distintos',true);return}
+    const dd=[];for(let i=0;i<n;i++)dd[i]=[yV[i]];
+    for(let j=1;j<n;j++)for(let i=0;i<n-j;i++)dd[i][j]=(dd[i+1][j-1]-dd[i][j-1])/(xV[i+j]-xV[i]);
+    function np(xp){let r=dd[0][0],p=1;for(let j=1;j<n;j++){p*=(xp-xV[j-1]);r+=dd[0][j]*p}return r}
+    const res=np(eX);
+    document.getElementById('ni-result').innerHTML=resHTML(`<b>P(${eX}) =</b> ${fmt(res,10)}`);
+    let html='<table><tr><th>x_i</th><th>f[x_i]</th>';for(let j=1;j<n;j++)html+=`<th>Ord ${j}</th>`;html+='</tr>';
+    for(let i=0;i<n;i++){html+=`<tr><td>${fmt(xV[i],4)}</td>`;for(let j=0;j<n-i;j++)html+=`<td>${fmt(dd[i][j],6)}</td>`;for(let j=0;j<i;j++)html+='<td></td>';html+='</tr>'}
+    document.getElementById('ni-table').innerHTML=html+'</table>';
+    const xMn=Math.min(...xV)-1,xMx=Math.max(...xV)+1,st=200,xs=[],ys=[];
+    for(let i=0;i<=st;i++){const xv=xMn+(xMx-xMn)*i/st;xs.push(xv);ys.push(np(xv))}
+    drawChart('ni-chart',{datasets:[{x:xs,y:ys,label:'P(x)',color:'#1a73e8'},{x:xV,y:yV,type:'scatter',label:'Puntos',color:'#d93025',pointRadius:6},{x:[eX],y:[res],type:'scatter',label:`P(${eX})`,color:'#0d904f',pointRadius:7}]});
+}
+
+// ========== DERIVACION NUMERICA ==========
+function runDerivacion(){
+    const expr=document.getElementById('der-fx').value,x0=PF('der-x0'),h0=PF('der-h');
+    const exactExpr=document.getElementById('der-exact').value;
+    const exactVal=exactExpr?evalF(exactExpr,{x:x0}):null;
+    // Compute at given h
+    const f=x=>evalF(expr,{x});
+    const fwd=(f(x0+h0)-f(x0))/h0;
+    const bwd=(f(x0)-f(x0-h0))/h0;
+    const ctr=(f(x0+h0)-f(x0-h0))/(2*h0);
+    const d2=(f(x0+h0)-2*f(x0)+f(x0-h0))/(h0*h0);
+
+    let res=`<b>f'(${x0}) aproximaciones con h=${h0}:</b><br>`;
+    res+=`Forward: ${fmt(fwd,10)} | Backward: ${fmt(bwd,10)} | Central: ${fmt(ctr,10)}<br>`;
+    res+=`<b>f''(${x0}):</b> ${fmt(d2,10)}`;
+    if(exactVal!==null) res+=`<br><b>Exacto f'(${x0}):</b> ${fmt(exactVal,10)} | <b>Error central:</b> ${fmt(Math.abs(ctr-exactVal))}`;
+    document.getElementById('der-result').innerHTML=resHTML(res);
+
+    // Table varying h
+    const hs=[],errFwd=[],errBwd=[],errCtr=[];
+    let html='<table><tr><th>h</th><th>Forward</th><th>Backward</th><th>Central</th><th>f\'\'(x0)</th>';
+    if(exactVal!==null) html+='<th>Err Fwd</th><th>Err Bwd</th><th>Err Central</th>';
+    html+='</tr>';
+    for(let k=0;k<12;k++){
+        const h=1/Math.pow(2,k);hs.push(h);
+        const fw=(f(x0+h)-f(x0))/h, bw=(f(x0)-f(x0-h))/h, ct=(f(x0+h)-f(x0-h))/(2*h), dd=(f(x0+h)-2*f(x0)+f(x0-h))/(h*h);
+        const ef=exactVal!==null?Math.abs(fw-exactVal):0, eb=exactVal!==null?Math.abs(bw-exactVal):0, ec=exactVal!==null?Math.abs(ct-exactVal):0;
+        errFwd.push(ef);errBwd.push(eb);errCtr.push(ec);
+        html+=`<tr><td>${fmt(h,6)}</td><td>${fmt(fw)}</td><td>${fmt(bw)}</td><td>${fmt(ct)}</td><td>${fmt(dd)}</td>`;
+        if(exactVal!==null) html+=`<td>${fmt(ef)}</td><td>${fmt(eb)}</td><td>${fmt(ec)}</td>`;
+        html+='</tr>';
+    }
+    document.getElementById('der-table').innerHTML=html+'</table>';
+
+    if(exactVal!==null){
+        drawChart('der-chart',{datasets:[
+            {x:hs,y:errFwd,label:'Err Forward (O(h))',color:'#d93025',showPoints:true,pointRadius:3},
+            {x:hs,y:errBwd,label:'Err Backward (O(h))',color:'#e37400',showPoints:true,pointRadius:3},
+            {x:hs,y:errCtr,label:'Err Central (O(h^2))',color:'#0d904f',showPoints:true,pointRadius:3}
+        ]});
+    }
+}
+
+// ========== RECTANGULOS ==========
+function runRectangulos(){
+    const expr=document.getElementById('rect-fx').value,a=PF('rect-a'),b=PF('rect-b');
+    const n=parseInt(document.getElementById('rect-n').value),tipo=document.getElementById('rect-tipo').value;
+    const h=(b-a)/n;const xs=[],ys=[];
+    for(let i=0;i<n;i++){
+        let xp;
+        if(tipo==='left') xp=a+i*h;
+        else if(tipo==='right') xp=a+(i+1)*h;
+        else xp=a+(i+0.5)*h;
+        xs.push(xp);ys.push(evalF(expr,{x:xp}));
+    }
+    const integral=h*ys.reduce((s,v)=>s+v,0);
+    const nombres={left:'Izquierda',right:'Derecha',mid:'Punto Medio'};
+    document.getElementById('rect-result').innerHTML=resHTML(`<b>Integral (${nombres[tipo]}) =</b> ${fmt(integral,10)} | h=${fmt(h)} | n=${n}`);
+    let html='<table><tr><th>i</th><th>x_i</th><th>f(x_i)</th><th>Area</th></tr>';
+    xs.forEach((x,i)=>{html+=`<tr><td>${i}</td><td>${fmt(x)}</td><td>${fmt(ys[i])}</td><td>${fmt(h*ys[i])}</td></tr>`});
+    document.getElementById('rect-table').innerHTML=html+'</table>';
+    // Chart
+    const fN=200,fxs=[],fys=[];for(let i=0;i<=fN;i++){const x=a+(b-a)*i/fN;fxs.push(x);fys.push(evalF(expr,{x}))}
+    const fills=[];
+    for(let i=0;i<n;i++){const x0=a+i*h,x1=a+(i+1)*h,yv=ys[i];fills.push({x:[x0,x1,x1,x0],y:[0,0,yv,yv],color:'rgba(26,115,232,0.15)'})}
+    drawChart('rect-chart',{datasets:[{x:fxs,y:fys,label:'f(x)',color:'#1a73e8'},{x:xs,y:ys,type:'scatter',label:nombres[tipo],color:'#d93025',pointRadius:4}],fills});
+}
+
+// ========== TRAPECIO ==========
+function runTrapecio(){
+    const expr=document.getElementById('trap-fx').value,a=PF('trap-a'),b=PF('trap-b'),n=parseInt(document.getElementById('trap-n').value),h=(b-a)/n;
+    const xs=[],ys=[];for(let i=0;i<=n;i++){const x=a+i*h;xs.push(x);ys.push(evalF(expr,{x}))}
+    let sum=ys[0]+ys[n];for(let i=1;i<n;i++)sum+=2*ys[i];const integral=(h/2)*sum;
+    // Error de truncamiento: E_T = -h^2*(b-a)/12 * f''(xi), estimado con f''(xi) en punto medio
+    const xMid=(a+b)/2;const f2=(evalF(expr,{x:xMid+h})-2*evalF(expr,{x:xMid})+evalF(expr,{x:xMid-h}))/(h*h);
+    const errTrunc=Math.abs(h*h*(b-a)/12*f2);
+    document.getElementById('trap-result').innerHTML=resHTML(`<b>Integral =</b> ${fmt(integral,10)} | h=${fmt(h)} | n=${n}<br><b>Error truncamiento estimado:</b> |E_T| = h^2*(b-a)/12*|f''(xi)| ≈ ${fmt(errTrunc)} (f''(${fmt(xMid,2)}) ≈ ${fmt(f2)})`);
+    let html='<table><tr><th>i</th><th>x_i</th><th>f(x_i)</th><th>Coef</th><th>Contrib</th></tr>';
+    for(let i=0;i<=n;i++){const c=(i===0||i===n)?1:2;html+=`<tr><td>${i}</td><td>${fmt(xs[i])}</td><td>${fmt(ys[i])}</td><td>${c}</td><td>${fmt(c*ys[i])}</td></tr>`}
+    document.getElementById('trap-table').innerHTML=html+'</table>';
+    const fN=200,fxs=[],fys=[];for(let i=0;i<=fN;i++){const x=a+(b-a)*i/fN;fxs.push(x);fys.push(evalF(expr,{x}))}
+    const fills=[];for(let i=0;i<n;i++)fills.push({x:[xs[i],xs[i+1],xs[i+1],xs[i]],y:[0,0,ys[i+1],ys[i]],color:'rgba(26,115,232,0.12)'});
+    drawChart('trap-chart',{datasets:[{x:fxs,y:fys,label:'f(x)',color:'#1a73e8'},{x:xs,y:ys,label:'Trapecios',color:'#d93025',lineWidth:1,showPoints:true,pointRadius:3}],fills});
+}
+
+// ========== SIMPSON ==========
+function runSimpson(){
+    const expr=document.getElementById('simp-fx').value,a=PF('simp-a'),b=PF('simp-b');
+    let n=parseInt(document.getElementById('simp-n').value);if(n%2!==0){n++;document.getElementById('simp-n').value=n}const h=(b-a)/n;
+    const xs=[],ys=[];for(let i=0;i<=n;i++){const x=a+i*h;xs.push(x);ys.push(evalF(expr,{x}))}
+    let sum=ys[0]+ys[n];for(let i=1;i<n;i++)sum+=(i%2===0?2:4)*ys[i];const integral=(h/3)*sum;
+    // Error truncamiento Simpson: E_S = -h^4*(b-a)/180 * f''''(xi)
+    const xMid2=(a+b)/2;const hd=h/2;
+    const f4=(evalF(expr,{x:xMid2+2*hd})-4*evalF(expr,{x:xMid2+hd})+6*evalF(expr,{x:xMid2})-4*evalF(expr,{x:xMid2-hd})+evalF(expr,{x:xMid2-2*hd}))/(hd*hd*hd*hd);
+    const errTruncS=Math.abs(h*h*h*h*(b-a)/180*f4);
+    document.getElementById('simp-result').innerHTML=resHTML(`<b>Integral =</b> ${fmt(integral,10)} | h=${fmt(h)} | n=${n}<br><b>Error truncamiento estimado:</b> |E_S| = h^4*(b-a)/180*|f4(xi)| = ${fmt(errTruncS)} (f4(${fmt(xMid2,2)}) = ${fmt(f4)})`);
+    let html='<table><tr><th>i</th><th>x_i</th><th>f(x_i)</th><th>Coef</th><th>Contrib</th></tr>';
+    for(let i=0;i<=n;i++){const c=(i===0||i===n)?1:(i%2===0?2:4);html+=`<tr><td>${i}</td><td>${fmt(xs[i])}</td><td>${fmt(ys[i])}</td><td>${c}</td><td>${fmt(c*ys[i])}</td></tr>`}
+    document.getElementById('simp-table').innerHTML=html+'</table>';
+    const fN=200,fxs=[],fys=[];for(let i=0;i<=fN;i++){const x=a+(b-a)*i/fN;fxs.push(x);fys.push(evalF(expr,{x}))}
+    drawChart('simp-chart',{datasets:[{x:fxs,y:fys,label:'f(x)',color:'#1a73e8'},{x:xs,y:ys,type:'scatter',label:'Simpson',color:'#d93025',pointRadius:4}],fills:[{x:[a,...fxs,b],y:[0,...fys,0],color:'rgba(26,115,232,0.12)'}]});
+}
+
+// ========== MONTECARLO 1D ==========
+// Seeded PRNG (Mulberry32) para reproducibilidad
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+function runMontecarlo1D(){
+    const expr=document.getElementById('mc-fx').value,a=PF('mc-a'),b=PF('mc-b'),N=parseInt(document.getElementById('mc-n').value);
+    const seedVal=parseInt(document.getElementById('mc-seed').value)||0;
+    const rng=seedVal>0?mulberry32(seedVal):Math.random;
+    const vals=[];let sum=0,sum2=0;
+    const convX=[],convY=[];let runSum=0;
+    for(let i=0;i<N;i++){
+        const x=a+rng()*(b-a);
+        const fv=evalF(expr,{x});vals.push(fv);sum+=fv;sum2+=fv*fv;
+        runSum+=fv;
+        if((i+1)%Math.max(1,Math.floor(N/200))===0){convX.push(i+1);convY.push((b-a)*runSum/(i+1))}
+    }
+    const mean=sum/N;const variance=Math.max(0,sum2/N-mean*mean);const stdErr=Math.sqrt(variance/N);
+    const integral=(b-a)*mean;const errInt=(b-a)*stdErr;
+    const ci95=1.96*errInt;
+    let res=`<b>Integral MC =</b> ${fmt(integral,10)}<br>`;
+    res+=`<b>Varianza estimada:</b> ${fmt(variance)} | <b>Error estandar:</b> ${fmt(errInt)}<br>`;
+    res+=`<b>IC 95%:</b> [${fmt(integral-ci95)}, ${fmt(integral+ci95)}]<br>`;
+    res+=`<b>N =</b> ${N}`;
+    document.getElementById('mc-result').innerHTML=resHTML(res);
+    drawChart('mc-chart',{datasets:[{x:convX,y:convY,label:'Estimacion MC',color:'#1a73e8'}]});
+}
+function runMontecarlo2D(){
+    const expr=document.getElementById('mc2-fxy').value;
+    const ax=PF('mc2-ax'),bx=PF('mc2-bx');
+    const ay=PF('mc2-ay'),by=PF('mc2-by');
+    const N=parseInt(document.getElementById('mc2-n').value);
+    const vol=(bx-ax)*(by-ay);let sum=0,sum2=0;
+    for(let i=0;i<N;i++){const x=ax+Math.random()*(bx-ax),y=ay+Math.random()*(by-ay);const v=evalF(expr,{x,y});sum+=v;sum2+=v*v}
+    const mean=sum/N;const variance=Math.max(0,sum2/N-mean*mean);const integral=vol*mean;const stdErr=vol*Math.sqrt(variance/N);
+    document.getElementById('mc2-result').innerHTML=resHTML(`<b>Integral 2D MC =</b> ${fmt(integral,10)} | <b>IC 95%:</b> [${fmt(integral-1.96*stdErr)}, ${fmt(integral+1.96*stdErr)}] | N=${N}`);
+}
+
+// ========== EULER ==========
+function runEuler(){
+    const expr=document.getElementById('euler-fxy').value;let x=PF('euler-x0'),y=PF('euler-y0');
+    const xf=PF('euler-xf'),h=PF('euler-h');
+    const exactExpr=document.getElementById('euler-exact').value.trim();
+    const hasExact=exactExpr.length>0;
+    const rows=[{i:0,x,y,fxy:evalF(expr,{x,y})}];let i=1;
+    while(x+h/2<xf){const fxy=evalF(expr,{x,y});const yNew=y+h*fxy;x=Math.round((x+h)*1e10)/1e10;y=yNew;rows.push({i,x,y,fxy});i++;if(i>10000)break}
+    const yFinal=rows[rows.length-1].y;
+    let resStr=`<b>y(${fmt(xf,4)}) =</b> ${fmt(yFinal,10)} | Pasos: ${rows.length-1}`;
+    if(hasExact){const ye=evalF(exactExpr,{x:xf});resStr+=` | <b>Exacta:</b> ${fmt(ye,10)} | <b>Error:</b> ${fmt(Math.abs(yFinal-ye))}`}
+    document.getElementById('euler-result').innerHTML=resHTML(resStr);
+    let html='<table><tr><th>i</th><th>x_i</th><th>y_i</th><th>f(x_i,y_i)</th>';
+    if(hasExact) html+='<th>y_real</th><th>Error abs</th>';
+    html+='</tr>';
+    rows.forEach(r=>{
+        html+=`<tr><td>${r.i}</td><td>${fmt(r.x,6)}</td><td>${fmt(r.y)}</td><td>${fmt(r.fxy)}</td>`;
+        if(hasExact){const ye=evalF(exactExpr,{x:r.x});html+=`<td>${fmt(ye)}</td><td>${fmt(Math.abs(r.y-ye))}</td>`}
+        html+='</tr>';
+    });
+    document.getElementById('euler-table').innerHTML=html+'</table>';
+    const datasets=[{x:rows.map(r=>r.x),y:rows.map(r=>r.y),label:'Euler',color:'#1a73e8',showPoints:true,pointRadius:3}];
+    if(hasExact){const n=200,xs2=[],ys2=[];for(let j=0;j<=n;j++){const xv=rows[0].x+(xf-rows[0].x)*j/n;xs2.push(xv);ys2.push(evalF(exactExpr,{x:xv}))}datasets.push({x:xs2,y:ys2,label:'Exacta',color:'#0d904f'})}
+    drawChart('euler-chart',{datasets});
+}
+
+// ========== EULER MODIFICADO (HEUN) ==========
+function runEulerMod(){
+    const expr=document.getElementById('em-fxy').value;let x=PF('em-x0'),y=PF('em-y0');
+    const xf=PF('em-xf'),h=PF('em-h');
+    const rows=[{i:0,x,y,yPred:'-',f0:evalF(expr,{x,y}),f1:'-'}];let i=1;
+    while(x+h/2<xf){
+        const f0=evalF(expr,{x,y});
+        const yPred=y+h*f0;
+        const x1=Math.round((x+h)*1e10)/1e10;
+        const f1=evalF(expr,{x:x1,y:yPred});
+        y=y+h/2*(f0+f1);x=x1;
+        rows.push({i,x,y,yPred:fmt(yPred),f0:fmt(f0),f1:fmt(f1)});i++;if(i>10000)break
+    }
+    document.getElementById('em-result').innerHTML=resHTML(`<b>y(${fmt(xf,4)}) =</b> ${fmt(rows[rows.length-1].y,10)} | Pasos: ${rows.length-1}`);
+    let html='<table><tr><th>i</th><th>x</th><th>y</th><th>y* (pred)</th><th>f(x_n,y_n)</th><th>f(x_{n+1},y*)</th></tr>';
+    rows.forEach(r=>{html+=`<tr><td>${r.i}</td><td>${fmt(r.x,6)}</td><td>${fmt(r.y)}</td><td>${r.yPred}</td><td>${r.f0}</td><td>${r.f1}</td></tr>`});
+    document.getElementById('em-table').innerHTML=html+'</table>';
+    drawChart('em-chart',{datasets:[{x:rows.map(r=>r.x),y:rows.map(r=>r.y),label:'Euler Mod.',color:'#1a73e8',showPoints:true,pointRadius:3}]});
+}
+
+// ========== TAYLOR ORDEN 2 ==========
+function runTaylor(){
+    const fExpr=document.getElementById('tay-fxy').value,dfExpr=document.getElementById('tay-dfxy').value;
+    let x=PF('tay-x0'),y=PF('tay-y0');
+    const xf=PF('tay-xf'),h=PF('tay-h');
+    const rows=[{i:0,x,y,f:evalF(fExpr,{x,y}),df:evalF(dfExpr,{x,y})}];let i=1;
+    while(x+h/2<xf){
+        const fv=evalF(fExpr,{x,y}),dfv=evalF(dfExpr,{x,y});
+        y=y+h*fv+(h*h/2)*dfv;
+        x=Math.round((x+h)*1e10)/1e10;
+        rows.push({i,x,y,f:evalF(fExpr,{x,y}),df:evalF(dfExpr,{x,y})});i++;if(i>10000)break
+    }
+    document.getElementById('tay-result').innerHTML=resHTML(`<b>y(${fmt(xf,4)}) =</b> ${fmt(rows[rows.length-1].y,10)} | Pasos: ${rows.length-1}`);
+    let html='<table><tr><th>i</th><th>x</th><th>y</th><th>f(x,y)</th><th>f\'(x,y)</th></tr>';
+    rows.forEach(r=>{html+=`<tr><td>${r.i}</td><td>${fmt(r.x,6)}</td><td>${fmt(r.y)}</td><td>${fmt(r.f)}</td><td>${fmt(r.df)}</td></tr>`});
+    document.getElementById('tay-table').innerHTML=html+'</table>';
+    drawChart('tay-chart',{datasets:[{x:rows.map(r=>r.x),y:rows.map(r=>r.y),label:'Taylor O(2)',color:'#1a73e8',showPoints:true,pointRadius:3}]});
+}
+
+// ========== RUNGE-KUTTA 4 ==========
+function runRK4(){
+    const expr=document.getElementById('rk-fxy').value;let x=PF('rk-x0'),y=PF('rk-y0');
+    const xf=PF('rk-xf'),h=PF('rk-h');
+    const exactExpr=document.getElementById('rk-exact').value.trim();const hasExact=exactExpr.length>0;
+    const rows=[{i:0,x,y,k1:'-',k2:'-',k3:'-',k4:'-'}];let i=1;
+    while(x+h/2<xf){const k1=h*evalF(expr,{x,y}),k2=h*evalF(expr,{x:x+h/2,y:y+k1/2}),k3=h*evalF(expr,{x:x+h/2,y:y+k2/2}),k4=h*evalF(expr,{x:x+h,y:y+k3});y+=(k1+2*k2+2*k3+k4)/6;x=Math.round((x+h)*1e10)/1e10;rows.push({i,x,y,k1,k2,k3,k4});i++;if(i>10000)break}
+    const yF=rows[rows.length-1].y;
+    let resStr=`<b>y(${fmt(xf,4)}) =</b> ${fmt(yF,10)} | Pasos: ${rows.length-1}`;
+    if(hasExact){const ye=evalF(exactExpr,{x:xf});resStr+=` | <b>Exacta:</b> ${fmt(ye,10)} | <b>Error:</b> ${fmt(Math.abs(yF-ye))}`}
+    document.getElementById('rk-result').innerHTML=resHTML(resStr);
+    let html='<table><tr><th>i</th><th>x_i</th><th>y_i</th><th>k1</th><th>k2</th><th>k3</th><th>k4</th>';
+    if(hasExact)html+='<th>y_real</th><th>Error</th>';
+    html+='</tr>';
+    rows.forEach(r=>{
+        html+=`<tr><td>${r.i}</td><td>${fmt(r.x,6)}</td><td>${fmt(r.y)}</td><td>${typeof r.k1==='number'?fmt(r.k1):'-'}</td><td>${typeof r.k2==='number'?fmt(r.k2):'-'}</td><td>${typeof r.k3==='number'?fmt(r.k3):'-'}</td><td>${typeof r.k4==='number'?fmt(r.k4):'-'}</td>`;
+        if(hasExact){const ye=evalF(exactExpr,{x:r.x});html+=`<td>${fmt(ye)}</td><td>${fmt(Math.abs(r.y-ye))}</td>`}
+        html+='</tr>';
+    });
+    document.getElementById('rk-table').innerHTML=html+'</table>';
+    const datasets=[{x:rows.map(r=>r.x),y:rows.map(r=>r.y),label:'RK4',color:'#1a73e8',showPoints:true,pointRadius:3}];
+    if(hasExact){const n=200,xs2=[],ys2=[];for(let j=0;j<=n;j++){const xv=rows[0].x+(xf-rows[0].x)*j/n;xs2.push(xv);ys2.push(evalF(exactExpr,{x:xv}))}datasets.push({x:xs2,y:ys2,label:'Exacta',color:'#0d904f'})}
+    drawChart('rk-chart',{datasets});
+}
+
+// ========== EDP DIFERENCIAS FINITAS ==========
+function runEDP(){
+    const fExpr=document.getElementById('edp-fxy').value;
+    const N=parseInt(document.getElementById('edp-n').value);
+    const bBottom=document.getElementById('edp-bottom').value,bTop=document.getElementById('edp-top').value;
+    const bLeft=document.getElementById('edp-left').value,bRight=document.getElementById('edp-right').value;
+    const h=1/(N+1);
+    // Grid N x N interior points
+    const u=[];for(let i=0;i<N+2;i++){u[i]=[];for(let j=0;j<N+2;j++)u[i][j]=0}
+    // Set boundary conditions
+    for(let i=0;i<N+2;i++){
+        const xi=i*h,yi=i*h;
+        u[i][0]=evalF(bBottom,{x:xi,pi:Math.PI});
+        u[i][N+1]=evalF(bTop,{x:xi,pi:Math.PI});
+        u[0][i]=evalF(bLeft,{x:yi,y:yi,pi:Math.PI});
+        u[N+1][i]=evalF(bRight,{x:yi,y:yi,pi:Math.PI});
+    }
+    // Gauss-Seidel iteration for Laplace/Poisson
+    const h2=h*h;
+    for(let iter=0;iter<5000;iter++){
+        let maxDiff=0;
+        for(let i=1;i<=N;i++){
+            for(let j=1;j<=N;j++){
+                const xi=i*h,yj=j*h;
+                const fval=evalF(fExpr,{x:xi,y:yj});
+                const newU=(u[i-1][j]+u[i+1][j]+u[i][j-1]+u[i][j+1]+h2*fval)/4;
+                maxDiff=Math.max(maxDiff,Math.abs(newU-u[i][j]));
+                u[i][j]=newU;
+            }
+        }
+        if(maxDiff<1e-6)break;
+    }
+    document.getElementById('edp-result').innerHTML=resHTML(`<b>Resuelto</b> con ${N}x${N} puntos interiores (h=${fmt(h,6)}). u(0.5, 0.5) = ${fmt(u[Math.floor((N+2)/2)][Math.floor((N+2)/2)])}`);
+    // Draw heatmap
+    const canvas=document.getElementById('edp-chart');
+    const rect=canvas.parentElement.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+    const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+    const W=rect.width,H=rect.height;
+    const mg={top:30,right:60,bottom:40,left:55};
+    const cw=W-mg.left-mg.right,ch=H-mg.top-mg.bottom;
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+    // Find min/max
+    let uMin=Infinity,uMax=-Infinity;
+    for(let i=0;i<N+2;i++)for(let j=0;j<N+2;j++){if(u[i][j]<uMin)uMin=u[i][j];if(u[i][j]>uMax)uMax=u[i][j]}
+    const uRange=uMax-uMin||1;
+    // Draw cells
+    const cellW=cw/(N+2),cellH=ch/(N+2);
+    for(let i=0;i<N+2;i++){
+        for(let j=0;j<N+2;j++){
+            const t=(u[i][j]-uMin)/uRange;
+            // Blue (cold) to Red (hot)
+            const r=Math.round(255*Math.min(1,2*t));
+            const g=Math.round(255*Math.min(1,2-2*Math.abs(t-0.5)));
+            const b=Math.round(255*Math.min(1,2*(1-t)));
+            ctx.fillStyle=`rgb(${r},${g},${b})`;
+            ctx.fillRect(mg.left+i*cellW,mg.top+(N+1-j)*cellH,cellW+1,cellH+1);
+        }
+    }
+    // Axis labels
+    ctx.fillStyle='#333';ctx.font='11px system-ui';ctx.textAlign='center';
+    for(let i=0;i<=4;i++){const v=i/4;ctx.fillText(fmt(v,2),mg.left+v*(N+1)*cellW+cellW/2,mg.top+ch+16)}
+    ctx.textAlign='right';
+    for(let i=0;i<=4;i++){const v=i/4;ctx.fillText(fmt(v,2),mg.left-6,mg.top+ch-v*(N+1)*cellH-cellH/2+4)}
+    ctx.fillStyle='#333';ctx.font='12px system-ui';ctx.textAlign='center';
+    ctx.fillText('x',mg.left+cw/2,mg.top+ch+32);
+    ctx.save();ctx.translate(12,mg.top+ch/2);ctx.rotate(-Math.PI/2);ctx.fillText('y',0,0);ctx.restore();
+    // Color bar
+    const barW=15,barX=mg.left+cw+10;
+    for(let j=0;j<ch;j++){const t=1-j/ch;const r=Math.round(255*Math.min(1,2*t)),g=Math.round(255*Math.min(1,2-2*Math.abs(t-0.5))),bl=Math.round(255*Math.min(1,2*(1-t)));ctx.fillStyle=`rgb(${r},${g},${bl})`;ctx.fillRect(barX,mg.top+j,barW,1)}
+    ctx.fillStyle='#333';ctx.font='10px system-ui';ctx.textAlign='left';
+    ctx.fillText(fmt(uMax,3),barX+barW+4,mg.top+10);
+    ctx.fillText(fmt(uMin,3),barX+barW+4,mg.top+ch);
+    ctx.fillText(fmt((uMax+uMin)/2,3),barX+barW+4,mg.top+ch/2+4);
+}
+
+// ========== GAUSS ==========
+function buildGaussMatrix(){
+    const n=parseInt(document.getElementById('gauss-n').value);
+    const d3=[[2,1,-1,8],[-3,-1,2,-11],[-2,1,2,-3]];
+    let html='<div class="matrix-grid" style="grid-template-columns:repeat('+(n+1)+',60px)">';
+    for(let i=0;i<n;i++)for(let j=0;j<=n;j++){const v=(n===3&&d3[i])?d3[i][j]:(i===j?1:0);const bd=j===n?'border-left:2px solid #1a73e8;padding-left:8px':'';html+=`<input type="text" id="gauss-${i}-${j}" value="${v}" step="any" style="${bd}">`}
+    document.getElementById('gauss-matrix').innerHTML=html+'</div>';document.getElementById('gauss-result').innerHTML='';document.getElementById('gauss-steps').innerHTML='';
+}
+function runGauss(){
+    const n=parseInt(document.getElementById('gauss-n').value);const A=[];
+    for(let i=0;i<n;i++){A[i]=[];for(let j=0;j<=n;j++)A[i][j]=PF(`gauss-${i}-${j}`)||0}
+    let stH='';
+    function mHTML(m,l){let s=`<p style="font-weight:500;margin:10px 0 6px">${l}</p><table>`;m.forEach(r=>{s+='<tr>';r.forEach((v,j)=>{s+=`<td style="${j===r.length-1?'border-left:2px solid #1a73e8':''}">${fmt(v,6)}</td>`});s+='</tr>'});return s+'</table>'}
+    stH+=mHTML(A,'Original:');
+    for(let k=0;k<n-1;k++){let mv=Math.abs(A[k][k]),mr=k;for(let i=k+1;i<n;i++)if(Math.abs(A[i][k])>mv){mv=Math.abs(A[i][k]);mr=i}
+    if(mr!==k){[A[k],A[mr]]=[A[mr],A[k]];stH+=mHTML(A.map(r=>[...r]),`Swap ${k+1}<->${mr+1}:`)}
+    if(Math.abs(A[k][k])<1e-12){document.getElementById('gauss-result').innerHTML=resHTML('Singular',true);return}
+    for(let i=k+1;i<n;i++){const f=A[i][k]/A[k][k];for(let j=k;j<=n;j++)A[i][j]-=f*A[k][j]}stH+=mHTML(A.map(r=>[...r]),`Elim col ${k+1}:`)}
+    const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=A[i][n];for(let j=i+1;j<n;j++)s-=A[i][j]*x[j];x[i]=s/A[i][i]}
+    let res='<b>Solucion:</b><br>';for(let i=0;i<n;i++)res+=`x<sub>${i+1}</sub> = ${fmt(x[i],10)}<br>`;
+    document.getElementById('gauss-result').innerHTML=resHTML(res);document.getElementById('gauss-steps').innerHTML=stH;
+}
+
+// ========== GAUSS-SEIDEL ==========
+function buildGSMatrix(){
+    const n=parseInt(document.getElementById('gs-n').value);
+    const d3=[[4,1,-1,5],[2,7,1,15],[1,-3,12,36]];
+    let html='<div class="matrix-grid" style="grid-template-columns:repeat('+(n+1)+',60px)">';
+    for(let i=0;i<n;i++)for(let j=0;j<=n;j++){const v=(n===3&&d3[i])?d3[i][j]:(i===j?10:1);const bd=j===n?'border-left:2px solid #1a73e8;padding-left:8px':'';html+=`<input type="text" id="gs-${i}-${j}" value="${v}" step="any" style="${bd}">`}
+    document.getElementById('gs-matrix').innerHTML=html+'</div>';document.getElementById('gs-result').innerHTML='';document.getElementById('gs-table').innerHTML='';
+}
+function runGaussSeidel(){
+    const n=parseInt(document.getElementById('gs-n').value),tol=PF('gs-tol'),maxI=parseInt(document.getElementById('gs-maxiter').value);
+    const A=[],b=[];for(let i=0;i<n;i++){A[i]=[];for(let j=0;j<n;j++)A[i][j]=PF(`gs-${i}-${j}`)||0;b[i]=PF(`gs-${i}-${n}`)||0}
+    // Validar diagonal no cero
+    for(let i=0;i<n;i++){if(Math.abs(A[i][i])<1e-15){document.getElementById('gs-result').innerHTML=resHTML('Error: diagonal A['+((i+1))+','+(i+1)+']=0. La matriz debe tener diagonal no nula (idealmente dominante).',true);return}}
+    let x=new Array(n).fill(0);const rows=[];
+    for(let it=1;it<=maxI;it++){const xO=[...x];for(let i=0;i<n;i++){let s=b[i];for(let j=0;j<n;j++)if(j!==i)s-=A[i][j]*x[j];x[i]=s/A[i][i]}const err=Math.max(...x.map((v,i)=>Math.abs(v-xO[i])));rows.push({it,x:[...x],error:err});if(err<tol)break}
+    const L=rows[rows.length-1];let res='<b>Solucion:</b><br>';for(let i=0;i<n;i++)res+=`x<sub>${i+1}</sub>=${fmt(L.x[i],10)} `;res+=`| Iter: ${L.it} | Error: ${fmt(L.error)}`;
+    document.getElementById('gs-result').innerHTML=resHTML(res);
+    let html='<table><tr><th>Iter</th>';for(let i=0;i<n;i++)html+=`<th>x${i+1}</th>`;html+='<th>Error</th></tr>';
+    rows.forEach(r=>{html+=`<tr><td>${r.it}</td>`;r.x.forEach(v=>{html+=`<td>${fmt(v)}</td>`});html+=`<td>${fmt(r.error)}</td></tr>`});
+    document.getElementById('gs-table').innerHTML=html+'</table>';
+}
+
+// ========== CAMPO DE DIRECCIONES ==========
+let cdState = {};
+function runCampoDir(){
+    const expr=document.getElementById('cd-fxy').value;
+    const xMin=PF('cd-xmin'),xMax=PF('cd-xmax');
+    const yMin=PF('cd-ymin'),yMax=PF('cd-ymax');
+    const density=parseInt(document.getElementById('cd-density').value);
+    cdState={expr,xMin,xMax,yMin,yMax};
+
+    const canvas=document.getElementById('cd-chart');
+    const rect=canvas.parentElement.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+    const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+    const W=rect.width,H=rect.height;
+    const mg={top:20,right:20,bottom:35,left:50};
+    const cw=W-mg.left-mg.right,ch=H-mg.top-mg.bottom;
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+
+    function tx(x){return mg.left+(x-xMin)/(xMax-xMin)*cw}
+    function ty(y){return mg.top+ch-(y-yMin)/(yMax-yMin)*ch}
+
+    // Grid lines
+    ctx.strokeStyle='#f0f0f0';ctx.lineWidth=1;
+    for(let i=0;i<=8;i++){const x=tx(xMin+(xMax-xMin)*i/8);ctx.beginPath();ctx.moveTo(x,mg.top);ctx.lineTo(x,mg.top+ch);ctx.stroke()}
+    for(let i=0;i<=6;i++){const y=ty(yMin+(yMax-yMin)*i/6);ctx.beginPath();ctx.moveTo(mg.left,y);ctx.lineTo(mg.left+cw,y);ctx.stroke()}
+    // Axes
+    ctx.strokeStyle='#999';ctx.lineWidth=1;
+    if(yMin<=0&&yMax>=0){const y0=ty(0);ctx.beginPath();ctx.moveTo(mg.left,y0);ctx.lineTo(mg.left+cw,y0);ctx.stroke()}
+    if(xMin<=0&&xMax>=0){const x0=tx(0);ctx.beginPath();ctx.moveTo(x0,mg.top);ctx.lineTo(x0,mg.top+ch);ctx.stroke()}
+    // Labels
+    ctx.fillStyle='#666';ctx.font='10px system-ui';ctx.textAlign='center';
+    for(let i=0;i<=8;i++){const v=xMin+(xMax-xMin)*i/8;ctx.fillText(fmt(v,2),tx(v),mg.top+ch+14)}
+    ctx.textAlign='right';
+    for(let i=0;i<=6;i++){const v=yMin+(yMax-yMin)*i/6;ctx.fillText(fmt(v,2),mg.left-4,ty(v)+3)}
+
+    ctx.save();ctx.beginPath();ctx.rect(mg.left,mg.top,cw,ch);ctx.clip();
+
+    // Slope field segments
+    const dxG=(xMax-xMin)/density, dyG=(yMax-yMin)/density;
+    const segLen=Math.min(cw/density,ch/density)*0.4;
+    ctx.strokeStyle='#6b7280';ctx.lineWidth=1.2;
+    for(let i=0;i<=density;i++){
+        for(let j=0;j<=density;j++){
+            const x=xMin+i*dxG, y=yMin+j*dyG;
+            const slope=evalF(expr,{x,y});
+            if(!isFinite(slope))continue;
+            const angle=Math.atan(slope);
+            const dx2=segLen/2*Math.cos(angle), dy2=segLen/2*Math.sin(angle);
+            const px=tx(x),py=ty(y);
+            ctx.beginPath();
+            ctx.moveTo(px-dx2,py+dy2);
+            ctx.lineTo(px+dx2,py-dy2);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+
+    document.getElementById('cd-result').innerHTML=resHTML('<b>Campo dibujado.</b> Click en la grafica para trazar una curva solucion desde ese punto.');
+
+    // Click handler for trajectories
+    canvas.onclick=function(evt){
+        const r2=canvas.getBoundingClientRect();
+        const cx=evt.clientX-r2.left, cy=evt.clientY-r2.top;
+        const xClick=xMin+(cx-mg.left)/cw*(xMax-xMin);
+        const yClick=yMax-(cy-mg.top)/ch*(yMax-yMin);
+        if(xClick<xMin||xClick>xMax||yClick<yMin||yClick>yMax)return;
+        // Trace forward and backward with Euler
+        const ctx2=canvas.getContext('2d');
+        const dpr2=window.devicePixelRatio||1;
+        ctx2.save();ctx2.scale(1/dpr2,1/dpr2);ctx2.scale(dpr2,dpr2);
+        ctx2.beginPath();ctx2.rect(mg.left,mg.top,cw,ch);ctx2.clip();
+        const colors=['#1a73e8','#d93025','#0d904f','#e37400','#9334e6','#c2185b','#00897b','#ff6f00'];
+        const ci=Math.floor(Math.random()*colors.length);
+        ctx2.strokeStyle=colors[ci];ctx2.lineWidth=2;
+        // Forward
+        let xc=xClick,yc=yClick;
+        ctx2.beginPath();ctx2.moveTo(tx(xc),ty(yc));
+        for(let s=0;s<5000;s++){
+            const sl=evalF(expr,{x:xc,y:yc});
+            if(!isFinite(sl))break;
+            const h=0.005;
+            xc+=h;yc+=h*sl;
+            if(xc<xMin*1.5||xc>xMax*1.5||yc<yMin*3||yc>yMax*3)break;
+            ctx2.lineTo(tx(xc),ty(yc));
+        }
+        ctx2.stroke();
+        // Backward
+        xc=xClick;yc=yClick;
+        ctx2.setLineDash([4,3]);
+        ctx2.beginPath();ctx2.moveTo(tx(xc),ty(yc));
+        for(let s=0;s<5000;s++){
+            const sl=evalF(expr,{x:xc,y:yc});
+            if(!isFinite(sl))break;
+            const h=-0.005;
+            xc+=h;yc+=h*sl;
+            if(xc<xMin*1.5||xc>xMax*1.5||yc<yMin*3||yc>yMax*3)break;
+            ctx2.lineTo(tx(xc),ty(yc));
+        }
+        ctx2.stroke();ctx2.setLineDash([]);
+        // Start dot
+        ctx2.beginPath();ctx2.arc(tx(xClick),ty(yClick),4,0,Math.PI*2);
+        ctx2.fillStyle=colors[ci];ctx2.fill();
+        ctx2.restore();
+    };
+}
+
+// ========== COMPARACION EDOs ==========
+function runEDOComp(){
+    const fExpr=document.getElementById('cmp-fxy').value, dfExpr=document.getElementById('cmp-dfxy').value;
+    const x0=PF('cmp-x0'),y0=PF('cmp-y0');
+    const xf=PF('cmp-xf'),h=PF('cmp-h');
+    const exactExpr=document.getElementById('cmp-exact').value;
+    const hasExact=exactExpr.trim().length>0;
+
+    // Euler
+    let x=x0,y=y0;const eulerD=[[x,y]];
+    while(x+h/2<xf){const fv=evalF(fExpr,{x,y});y+=h*fv;x=Math.round((x+h)*1e10)/1e10;eulerD.push([x,y])}
+    // Heun
+    x=x0;y=y0;const heunD=[[x,y]];
+    while(x+h/2<xf){const f0=evalF(fExpr,{x,y});const yP=y+h*f0;const x1=Math.round((x+h)*1e10)/1e10;const f1=evalF(fExpr,{x:x1,y:yP});y=y+h/2*(f0+f1);x=x1;heunD.push([x,y])}
+    // Taylor
+    x=x0;y=y0;const tayD=[[x,y]];
+    while(x+h/2<xf){const fv=evalF(fExpr,{x,y});const dfv=evalF(dfExpr,{x,y});y+=h*fv+(h*h/2)*dfv;x=Math.round((x+h)*1e10)/1e10;tayD.push([x,y])}
+    // RK4
+    x=x0;y=y0;const rk4D=[[x,y]];
+    while(x+h/2<xf){const k1=h*evalF(fExpr,{x,y});const k2=h*evalF(fExpr,{x:x+h/2,y:y+k1/2});const k3=h*evalF(fExpr,{x:x+h/2,y:y+k2/2});const k4=h*evalF(fExpr,{x:x+h,y:y+k3});y+=(k1+2*k2+2*k3+k4)/6;x=Math.round((x+h)*1e10)/1e10;rk4D.push([x,y])}
+
+    // Result
+    let res=`<div class="result-box"><b>y(${fmt(xf,2)}):</b> `;
+    res+=`Euler=${fmt(eulerD[eulerD.length-1][1])} | Heun=${fmt(heunD[heunD.length-1][1])} | Taylor=${fmt(tayD[tayD.length-1][1])} | RK4=${fmt(rk4D[rk4D.length-1][1])}`;
+    if(hasExact){const ev=evalF(exactExpr,{x:xf});res+=` | <b>Exacta=${fmt(ev)}</b>`}
+    res+='</div>';
+    document.getElementById('cmp-result').innerHTML=res;
+
+    // Table
+    let html='<table><tr><th>x</th><th>Euler</th><th>Heun</th><th>Taylor</th><th>RK4</th>';
+    if(hasExact) html+='<th>Exacta</th><th>Err Euler</th><th>Err Heun</th><th>Err Taylor</th><th>Err RK4</th>';
+    html+='</tr>';
+    for(let i=0;i<eulerD.length;i++){
+        const xi=eulerD[i][0];
+        html+=`<tr><td>${fmt(xi,4)}</td><td>${fmt(eulerD[i][1])}</td><td>${fmt(heunD[i][1])}</td><td>${fmt(tayD[i][1])}</td><td>${fmt(rk4D[i][1])}</td>`;
+        if(hasExact){
+            const ev=evalF(exactExpr,{x:xi});
+            html+=`<td>${fmt(ev)}</td><td>${fmt(Math.abs(eulerD[i][1]-ev))}</td><td>${fmt(Math.abs(heunD[i][1]-ev))}</td><td>${fmt(Math.abs(tayD[i][1]-ev))}</td><td>${fmt(Math.abs(rk4D[i][1]-ev))}</td>`;
+        }
+        html+='</tr>';
+    }
+    document.getElementById('cmp-table').innerHTML=html+'</table>';
+
+    // Chart
+    const canvas=document.getElementById('cmp-chart');
+    const rect=canvas.parentElement.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;
+    const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+    const W=rect.width,H=rect.height;
+
+    // Top half: solutions, bottom half: errors
+    const hasErr=hasExact;
+    const topH=hasErr?H*0.55:H-55;
+    const botH=hasErr?H*0.35:0;
+    const mg={top:20,right:20,bottom:5,left:55};
+
+    // Collect all y values
+    const allY=[...eulerD.map(d=>d[1]),...heunD.map(d=>d[1]),...tayD.map(d=>d[1]),...rk4D.map(d=>d[1])];
+    if(hasExact) eulerD.forEach(d=>{allY.push(evalF(exactExpr,{x:d[0]}))});
+    const yMn=Math.min(...allY.filter(isFinite))*1.05-0.1, yMx=Math.max(...allY.filter(isFinite))*1.05+0.1;
+    const xMn=x0,xMx=xf;
+
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+
+    // Draw solutions
+    const cwT=W-mg.left-mg.right, chT=topH-mg.top-mg.bottom;
+    const txS=x2=>mg.left+(x2-xMn)/(xMx-xMn)*cwT;
+    const tyS=y2=>mg.top+chT-(y2-yMn)/(yMx-yMn)*chT;
+
+    // Grid
+    ctx.strokeStyle='#f0f0f0';ctx.lineWidth=1;
+    for(let i=0;i<=8;i++){const px=txS(xMn+(xMx-xMn)*i/8);ctx.beginPath();ctx.moveTo(px,mg.top);ctx.lineTo(px,mg.top+chT);ctx.stroke()}
+    for(let i=0;i<=5;i++){const py=tyS(yMn+(yMx-yMn)*i/5);ctx.beginPath();ctx.moveTo(mg.left,py);ctx.lineTo(mg.left+cwT,py);ctx.stroke()}
+    ctx.strokeStyle='#ccc';ctx.lineWidth=0.5;
+    if(yMn<=0&&yMx>=0){ctx.beginPath();ctx.moveTo(mg.left,tyS(0));ctx.lineTo(mg.left+cwT,tyS(0));ctx.stroke()}
+    // Axis labels
+    ctx.fillStyle='#666';ctx.font='10px system-ui';ctx.textAlign='center';
+    for(let i=0;i<=8;i++){const v=xMn+(xMx-xMn)*i/8;ctx.fillText(fmt(v,2),txS(v),mg.top+chT+12)}
+    ctx.textAlign='right';
+    for(let i=0;i<=5;i++){const v=yMn+(yMx-yMn)*i/5;ctx.fillText(fmt(v,2),mg.left-4,tyS(v)+3)}
+
+    ctx.save();ctx.beginPath();ctx.rect(mg.left,mg.top,cwT,chT);ctx.clip();
+
+    // Exact solution
+    if(hasExact){
+        ctx.strokeStyle='#333';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.beginPath();
+        for(let i=0;i<=200;i++){const xv=xMn+(xMx-xMn)*i/200;const yv=evalF(exactExpr,{x:xv});if(!isFinite(yv))continue;i===0?ctx.moveTo(txS(xv),tyS(yv)):ctx.lineTo(txS(xv),tyS(yv))}
+        ctx.stroke();
+    }
+
+    const methods=[
+        {data:eulerD,color:'#d93025',name:'Euler',dash:[]},
+        {data:heunD,color:'#e37400',name:'Heun',dash:[]},
+        {data:tayD,color:'#9334e6',name:'Taylor',dash:[]},
+        {data:rk4D,color:'#1a73e8',name:'RK4',dash:[]}
+    ];
+    methods.forEach(m=>{
+        ctx.strokeStyle=m.color;ctx.lineWidth=1.5;ctx.setLineDash(m.dash);ctx.beginPath();
+        m.data.forEach((d,i)=>{i===0?ctx.moveTo(txS(d[0]),tyS(d[1])):ctx.lineTo(txS(d[0]),tyS(d[1]))});
+        ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle=m.color;
+        m.data.forEach(d=>{ctx.beginPath();ctx.arc(txS(d[0]),tyS(d[1]),3,0,Math.PI*2);ctx.fill()});
+    });
+    ctx.restore();
+
+    // Legend
+    let lx=mg.left+10,ly=mg.top+14;ctx.font='11px system-ui';
+    if(hasExact){ctx.fillStyle='#333';ctx.fillRect(lx,ly-6,14,3);ctx.fillStyle='#333';ctx.textAlign='left';ctx.fillText('Exacta',lx+18,ly);ly+=16}
+    methods.forEach(m=>{ctx.fillStyle=m.color;ctx.fillRect(lx,ly-6,14,3);ctx.fillStyle='#333';ctx.textAlign='left';ctx.fillText(m.name,lx+18,ly);ly+=16});
+
+    // Error plot (bottom)
+    if(hasErr){
+        const errTop=topH+20;
+        const errH=botH;
+        const errBot=errTop+errH;
+        // Compute errors
+        const errs=methods.map(m=>m.data.map(d=>Math.abs(d[1]-evalF(exactExpr,{x:d[0]}))));
+        const allErr=errs.flat().filter(v=>isFinite(v)&&v>0);
+        if(allErr.length>0){
+            const eMn=0, eMx=Math.max(...allErr)*1.2+1e-10;
+            const tyE=y2=>errTop+errH-(y2-eMn)/(eMx-eMn)*errH;
+            // Grid
+            ctx.strokeStyle='#f0f0f0';ctx.lineWidth=1;
+            for(let i=0;i<=3;i++){const py=tyE(eMn+(eMx-eMn)*i/3);ctx.beginPath();ctx.moveTo(mg.left,py);ctx.lineTo(mg.left+cwT,py);ctx.stroke()}
+            ctx.fillStyle='#666';ctx.font='9px system-ui';ctx.textAlign='right';
+            for(let i=0;i<=3;i++){const v=eMn+(eMx-eMn)*i/3;ctx.fillText(fmt(v,4),mg.left-4,tyE(v)+3)}
+            ctx.fillStyle='#333';ctx.font='11px system-ui';ctx.textAlign='center';
+            ctx.fillText('Error absoluto',mg.left+cwT/2,errTop-6);
+
+            ctx.save();ctx.beginPath();ctx.rect(mg.left,errTop,cwT,errH);ctx.clip();
+            methods.forEach((m,mi)=>{
+                ctx.strokeStyle=m.color;ctx.lineWidth=1.5;ctx.beginPath();
+                m.data.forEach((d,i)=>{const ev=errs[mi][i];if(!isFinite(ev))return;i===0?ctx.moveTo(txS(d[0]),tyE(ev)):ctx.lineTo(txS(d[0]),tyE(ev))});
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+    }
+}
+
+// ========== TECLADO MATEMATICO ==========
+function createMathKeyboard(){
+    const kb = document.createElement('div');
+    kb.className = 'math-kb';
+    kb.id = 'math-keyboard';
+    kb.innerHTML = `
+        <button class="math-kb-close" onclick="closeMathKB()">&times;</button>
+        <div class="math-kb-title">Teclado Matematico</div>
+        <div class="math-kb-grid">
+            <button onclick="kbInsert('sin(')">sin</button>
+            <button onclick="kbInsert('cos(')">cos</button>
+            <button onclick="kbInsert('tan(')">tan</button>
+            <button onclick="kbInsert('exp(')">exp</button>
+            <button onclick="kbInsert('log(')">ln</button>
+            <button onclick="kbInsert('sqrt(')">sqrt</button>
+            <button onclick="kbInsert('abs(')">abs</button>
+            <button onclick="kbInsert('asin(')">asin</button>
+            <button onclick="kbInsert('acos(')">acos</button>
+            <button onclick="kbInsert('atan(')">atan</button>
+            <button onclick="kbInsert('^')">^</button>
+            <button onclick="kbInsert('pi')">pi</button>
+            <button onclick="kbInsert('e')">e</button>
+            <button onclick="kbInsert('(')">(</button>
+            <button onclick="kbInsert('7')">7</button>
+            <button onclick="kbInsert('8')">8</button>
+            <button onclick="kbInsert('9')">9</button>
+            <button onclick="kbInsert('+')">+</button>
+            <button onclick="kbInsert('-')">-</button>
+            <button onclick="kbInsert(')')">)</button>
+            <button onclick="kbInsert('/')">/</button>
+            <button onclick="kbInsert('4')">4</button>
+            <button onclick="kbInsert('5')">5</button>
+            <button onclick="kbInsert('6')">6</button>
+            <button onclick="kbInsert('*')">*</button>
+            <button onclick="kbInsert('x')">x</button>
+            <button onclick="kbInsert('y')">y</button>
+            <button onclick="kbInsert('1/(' )">1/x</button>
+            <button onclick="kbInsert('1')">1</button>
+            <button onclick="kbInsert('2')">2</button>
+            <button onclick="kbInsert('3')">3</button>
+            <button onclick="kbInsert('.')">.</button>
+            <button onclick="kbInsert('0')">0</button>
+            <button onclick="kbBackspace()" style="color:#d93025">&#9003;</button>
+            <button onclick="kbClear()" style="color:#d93025">AC</button>
+        </div>
+    `;
+    document.body.appendChild(kb);
+}
+
+let activeKBInput = null;
+function openMathKB(inputEl){
+    activeKBInput = inputEl;
+    const kb = document.getElementById('math-keyboard');
+    const rect = inputEl.getBoundingClientRect();
+    kb.style.left = Math.min(rect.left, window.innerWidth - 360) + 'px';
+    kb.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    kb.classList.add('visible');
+}
+function closeMathKB(){ document.getElementById('math-keyboard').classList.remove('visible'); activeKBInput = null; }
+function kbInsert(text){
+    if(!activeKBInput) return;
+    const el = activeKBInput;
+    const start = el.selectionStart || el.value.length;
+    el.value = el.value.substring(0, start) + text + el.value.substring(el.selectionEnd || start);
+    el.focus();
+    el.setSelectionRange(start + text.length, start + text.length);
+}
+function kbBackspace(){
+    if(!activeKBInput) return;
+    const el = activeKBInput;
+    const pos = el.selectionStart || el.value.length;
+    if(pos > 0){ el.value = el.value.substring(0, pos-1) + el.value.substring(pos); el.focus(); el.setSelectionRange(pos-1, pos-1); }
+}
+function kbClear(){ if(activeKBInput){ activeKBInput.value = ''; activeKBInput.focus(); } }
+
+function addKBToggleButtons(){
+    // Add toggle button to all text inputs that accept math expressions
+    document.querySelectorAll('.form-group input[type="text"]').forEach(input => {
+        const btn = document.createElement('button');
+        btn.className = 'kb-toggle';
+        btn.innerHTML = '&#119891;'; // math italic f
+        btn.title = 'Teclado matematico';
+        btn.onclick = function(e){ e.preventDefault(); openMathKB(input); };
+        input.parentElement.style.position = 'relative';
+        input.parentElement.appendChild(btn);
+    });
+}
+
+// Close KB when clicking outside
+document.addEventListener('click', function(e){
+    const kb = document.getElementById('math-keyboard');
+    if(!kb) return;
+    if(!kb.contains(e.target) && !e.target.classList.contains('kb-toggle') && e.target !== activeKBInput){
+        closeMathKB();
+    }
+});
+
+// ========== INIT ==========
+window.addEventListener('load',()=>{
+    buildGaussMatrix();
+    buildGSMatrix();
+    createMathKeyboard();
+    addKBToggleButtons();
+});
+</script>
+</body>
+</html>

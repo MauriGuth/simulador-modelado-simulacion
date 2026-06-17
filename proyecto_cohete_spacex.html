@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador SpaceX - Lanzamiento y Aterrizaje de Cohete</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjs@13.2.0/lib/browser/math.min.js"></script>
+    <style>
+        :root { --bg:#0a0e1a; --card:#111827; --border:#1e293b; --text:#e2e8f0; --text2:#94a3b8; --blue:#3b82f6; --green:#22c55e; --red:#ef4444; --orange:#f97316; --purple:#a855f7; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+        header{background:linear-gradient(135deg,#0f172a,#1e1b4b);padding:20px 30px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:20px}
+        header h1{font-size:22px;font-weight:700;background:linear-gradient(90deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        header p{color:var(--text2);font-size:12px}
+        .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+        .badge-blue{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3)}
+        .tabs{display:flex;gap:0;background:#0f172a;border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto}
+        .tab{padding:12px 20px;font-size:13px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
+        .tab:hover{color:var(--text)}
+        .tab.active{color:#60a5fa;border-bottom-color:#3b82f6}
+        .content{padding:20px;max-width:1400px;margin:0 auto}
+        .panel{display:none}
+        .panel.active{display:block}
+        .grid{display:grid;gap:16px}
+        .g2{grid-template-columns:1fr 1fr}
+        .g3{grid-template-columns:1fr 1fr 1fr}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;position:relative;overflow:hidden}
+        .card h3{font-size:14px;margin-bottom:12px;color:var(--text);display:flex;align-items:center;gap:8px}
+        .card h3 .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+        .info{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px}
+        .fr{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+        .fg{display:flex;flex-direction:column;flex:1;min-width:100px}
+        .fg label{font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:500}
+        .fg input,.fg select{padding:8px 10px;background:#1e293b;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:monospace;outline:none}
+        .fg input:focus{border-color:var(--blue)}
+        .btn{padding:10px 22px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+        .btn-launch{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff}
+        .btn-launch:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(59,130,246,0.4)}
+        .btn-stop{background:#dc2626;color:#fff}
+        .btn-reset{background:#374151;color:var(--text)}
+        .bg{display:flex;gap:8px;margin-top:8px}
+        canvas{border-radius:8px;width:100%!important;height:100%!important}
+        .sim-canvas{background:#000;height:500px;position:relative}
+        .chart-box{height:300px}
+        .telemetry{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+        .telem-item{background:#0f172a;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+        .telem-item .val{font-size:22px;font-weight:700;font-family:monospace}
+        .telem-item .lbl{font-size:10px;color:var(--text2);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}
+        .result-box{background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:12px;margin-top:10px;font-size:13px;color:var(--green)}
+        .result-box.err{background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:var(--red)}
+        table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+        th{background:#0f172a;padding:8px;text-align:left;font-weight:600;border-bottom:1px solid var(--border);color:var(--text2);font-size:11px}
+        td{padding:6px 8px;border-bottom:1px solid #1e293b;font-family:monospace;font-size:11px}
+        tr:hover td{background:rgba(59,130,246,0.05)}
+        .tc{overflow-x:auto;max-height:400px;overflow-y:auto}
+        .phase-label{position:absolute;top:10px;right:10px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;z-index:5}
+        @media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.telemetry{grid-template-columns:repeat(2,1fr)}}
+        .method-tag{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(168,85,247,0.15);color:#c084fc;border:1px solid rgba(168,85,247,0.3);margin-left:4px}
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>Simulador de Mision SpaceX Falcon 9</h1>
+        <p>Modelado y Simulacion - UADE - Lanzamiento, ascenso y aterrizaje vertical</p>
+    </div>
+    <span class="badge badge-blue">Proyecto Final</span>
+</header>
+
+<div class="tabs">
+    <div class="tab active" onclick="showTab('sim',this)">Simulacion</div>
+    <div class="tab" onclick="showTab('traj',this)">Trayectoria</div>
+    <div class="tab" onclick="showTab('methods',this)">Comparacion Metodos</div>
+    <div class="tab" onclick="showTab('monte',this)">Monte Carlo</div>
+    <div class="tab" onclick="showTab('optim',this)">Optimizacion</div>
+    <div class="tab" onclick="showTab('sens',this)">Sensibilidad</div>
+    <div class="tab" onclick="showTab('theory',this)">Marco Teorico</div>
+</div>
+
+<div class="content">
+
+<!-- ==================== SIMULACION ==================== -->
+<div class="panel active" id="p-sim">
+    <div class="grid g2">
+        <div>
+            <div class="card">
+                <h3><span class="dot" style="background:var(--blue)"></span> Parametros de la 1ra Etapa</h3>
+                <div class="fr">
+                    <div class="fg"><label>Masa seca etapa 1 (kg)</label><input type="number" id="s-mass" value="25600" step="100"></div>
+                    <div class="fg"><label>Masa combustible 1 (kg)</label><input type="number" id="s-fuel" value="395700" step="1000"></div>
+                </div>
+                <div class="fr">
+                    <div class="fg"><label>Empuje maximo 1 (N)</label><input type="number" id="s-thrust" value="7607000" step="10000"></div>
+                    <div class="fg"><label>Tasa fuel 1 (kg/s)</label><input type="number" id="s-fuelrate" value="2450" step="10"></div>
+                </div>
+                <div class="fr">
+                    <div class="fg"><label>Coef. arrastre Cd</label><input type="number" id="s-cd" value="0.3" step="0.01"></div>
+                    <div class="fg"><label>Area frontal (m2)</label><input type="number" id="s-area" value="10.52" step="0.1"></div>
+                </div>
+                <div class="fr">
+                    <div class="fg"><label>Altitud objetivo (km)</label><input type="number" id="s-target" value="100" step="10"></div>
+                    <div class="fg"><label>Paso h (s)</label><input type="number" id="s-h" value="0.5" step="0.1"></div>
+                </div>
+                <h3 style="margin-top:14px"><span class="dot" style="background:var(--purple)"></span> 2da Etapa <label style="font-size:11px;margin-left:auto;font-weight:400;cursor:pointer"><input type="checkbox" id="s-stage2-en" style="vertical-align:middle"> habilitar</label></h3>
+                <div class="fr">
+                    <div class="fg"><label>Masa seca etapa 2 (kg)</label><input type="number" id="s-stage2-mass" value="4000" step="100"></div>
+                    <div class="fg"><label>Masa combustible 2 (kg)</label><input type="number" id="s-stage2-fuel" value="92670" step="500"></div>
+                </div>
+                <div class="fr">
+                    <div class="fg"><label>Empuje maximo 2 (N)</label><input type="number" id="s-stage2-thrust" value="981000" step="10000"></div>
+                    <div class="fg"><label>Tasa fuel 2 (kg/s)</label><input type="number" id="s-stage2-fuelrate" value="273" step="10"></div>
+                </div>
+                <h3 style="margin-top:14px"><span class="dot" style="background:var(--orange)"></span> Guiado y Empuje</h3>
+                <div class="fr">
+                    <div class="fg"><label>Gravity turn desde (s)</label><input type="number" id="s-tilt-start" value="9999" step="1"></div>
+                    <div class="fg"><label>Angulo pitch inicial (deg)</label><input type="number" id="s-tilt-angle" value="2" step="0.5"></div>
+                </div>
+                <div class="fr">
+                    <div class="fg" style="flex:2"><label>Throttle(t, y, v) - ascenso</label><input type="text" id="s-throttle" value="1" placeholder="ej: 1, o t<60 ? 1 : 0.7"></div>
+                </div>
+                <div class="bg">
+                    <button class="btn btn-launch" onclick="startSimulation()">Lanzar Cohete</button>
+                    <button class="btn btn-stop" onclick="stopSimulation()">Detener</button>
+                    <button class="btn btn-reset" onclick="resetSimulation()">Reset</button>
+                </div>
+            </div>
+            <div class="card" style="margin-top:14px">
+                <h3><span class="dot" style="background:var(--green)"></span> Telemetria en Tiempo Real</h3>
+                <div class="telemetry">
+                    <div class="telem-item"><div class="val" id="t-alt" style="color:var(--blue)">0</div><div class="lbl">Altitud (km)</div></div>
+                    <div class="telem-item"><div class="val" id="t-vel" style="color:var(--green)">0</div><div class="lbl">Velocidad (m/s)</div></div>
+                    <div class="telem-item"><div class="val" id="t-acc" style="color:var(--orange)">0</div><div class="lbl">Aceleracion (m/s2)</div></div>
+                    <div class="telem-item"><div class="val" id="t-fuel" style="color:var(--red)">100%</div><div class="lbl">Combustible</div></div>
+                </div>
+                <div class="telemetry">
+                    <div class="telem-item"><div class="val" id="t-mass" style="color:var(--purple)">0</div><div class="lbl">Masa total (t)</div></div>
+                    <div class="telem-item"><div class="val" id="t-drag" style="color:var(--text2)">0</div><div class="lbl">Arrastre (kN)</div></div>
+                    <div class="telem-item"><div class="val" id="t-mach" style="color:var(--orange)">0</div><div class="lbl">Mach</div></div>
+                    <div class="telem-item"><div class="val" id="t-phase" style="color:#60a5fa">LISTO</div><div class="lbl">Fase</div></div>
+                </div>
+                <div id="sim-status"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3><span class="dot" style="background:var(--orange)"></span> Visualizacion</h3>
+            <div class="sim-canvas"><canvas id="sim-cv"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TRAYECTORIA ==================== -->
+<div class="panel" id="p-traj">
+    <div class="card">
+        <h3>Exportar</h3>
+        <div class="bg">
+            <button class="btn btn-launch" onclick="exportCSV()">Descargar CSV</button>
+            <button class="btn btn-reset" onclick="exportAllPNG()">Descargar graficos (PNG)</button>
+        </div>
+        <div class="info" style="margin-top:8px">Ejecute la simulacion primero. El CSV contiene t, x, y, vx, vy, aceleracion, masa, fuel, fase y mach. Los PNG se descargan uno por grafico.</div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Altitud vs Tiempo</h3><div class="chart-box"><canvas id="ch-alt"></canvas></div></div>
+        <div class="card"><h3>Velocidad vs Tiempo</h3><div class="chart-box"><canvas id="ch-vel"></canvas></div></div>
+        <div class="card"><h3>Aceleracion vs Tiempo</h3><div class="chart-box"><canvas id="ch-acc"></canvas></div></div>
+        <div class="card"><h3>Masa (combustible) vs Tiempo</h3><div class="chart-box"><canvas id="ch-mass"></canvas></div></div>
+        <div class="card" style="grid-column:span 2"><h3>Trayectoria 2D (Y vs X)</h3><div class="chart-box" style="height:400px"><canvas id="ch-xy"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Datos de Vuelo Completos</h3><div class="tc" id="traj-table"></div></div>
+</div>
+
+<!-- ==================== COMPARACION METODOS ==================== -->
+<div class="panel" id="p-methods">
+    <div class="card">
+        <h3><span class="dot" style="background:var(--purple)"></span> Comparacion: Euler vs Heun vs RK4 <span class="method-tag">Clase 7</span></h3>
+        <div class="info">Compara la precision de los 3 metodos de EDOs aplicados al mismo problema de lanzamiento. Usa RK4 con h/10 como referencia "exacta".</div>
+        <div class="fr">
+            <div class="fg"><label>Paso h (s)</label><input type="number" id="m-h" value="2" step="0.5"></div>
+            <div class="fg"><label>Tiempo final (s)</label><input type="number" id="m-tf" value="160" step="10"></div>
+        </div>
+        <div class="bg"><button class="btn btn-launch" onclick="runMethodComparison()">Comparar Metodos</button></div>
+        <div id="m-result"></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Altitud: Euler vs Heun vs RK4</h3><div class="chart-box"><canvas id="ch-meth"></canvas></div></div>
+        <div class="card"><h3>Error Absoluto vs Referencia</h3><div class="chart-box"><canvas id="ch-merr"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Tabla Comparativa</h3><div class="tc" id="meth-table"></div></div>
+</div>
+
+<!-- ==================== MONTE CARLO ==================== -->
+<div class="panel" id="p-monte">
+    <div class="card">
+        <h3><span class="dot" style="background:var(--green)"></span> Monte Carlo: Probabilidad de Aterrizaje Exitoso <span class="method-tag">Clase 6</span></h3>
+        <div class="info">Simula N lanzamientos con incertidumbre en empuje (+-5%), combustible (+-3%), arrastre (+-10%) y viento aleatorio. Calcula probabilidad de aterrizar dentro de la zona objetivo (+- 500m del pad).</div>
+        <div class="fr">
+            <div class="fg"><label>N simulaciones</label><input type="number" id="mc-n" value="1000" min="100"></div>
+            <div class="fg"><label>Incertidumbre empuje (%)</label><input type="number" id="mc-thrust" value="5" step="1"></div>
+            <div class="fg"><label>Incertidumbre fuel (%)</label><input type="number" id="mc-fuel" value="3" step="1"></div>
+            <div class="fg"><label>Radio zona exito (m)</label><input type="number" id="mc-zone" value="500" step="50"></div>
+        </div>
+        <div class="bg"><button class="btn btn-launch" onclick="runMonteCarlo()">Ejecutar Monte Carlo</button></div>
+        <div id="mc-result"></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Distribucion de Altitud Maxima</h3><div class="chart-box"><canvas id="ch-mc1"></canvas></div></div>
+        <div class="card"><h3>Dispersion de Punto de Aterrizaje</h3><div class="chart-box"><canvas id="ch-mc2"></canvas></div></div>
+    </div>
+</div>
+
+<!-- ==================== OPTIMIZACION ==================== -->
+<div class="panel" id="p-optim">
+    <div class="card">
+        <h3><span class="dot" style="background:var(--orange)"></span> Optimizacion: Combustible Minimo <span class="method-tag">Biseccion + Newton</span></h3>
+        <div class="info">Usa biseccion y Newton-Raphson para encontrar la cantidad minima de combustible necesaria para alcanzar la altitud objetivo. Funcion: f(fuel) = altitud_max(fuel) - objetivo.</div>
+        <div class="fr">
+            <div class="fg"><label>Altitud objetivo (km)</label><input type="number" id="o-target" value="100" step="10"></div>
+            <div class="fg"><label>Fuel min (kg)</label><input type="number" id="o-fmin" value="100000" step="10000"></div>
+            <div class="fg"><label>Fuel max (kg)</label><input type="number" id="o-fmax" value="500000" step="10000"></div>
+            <div class="fg"><label>Tolerancia (kg)</label><input type="number" id="o-tol" value="100" step="10"></div>
+        </div>
+        <div class="bg">
+            <button class="btn btn-launch" onclick="runOptimBisect()">Biseccion</button>
+            <button class="btn btn-launch" style="background:linear-gradient(135deg,#f97316,#ef4444)" onclick="runOptimNewton()">Newton-Raphson</button>
+        </div>
+        <div id="o-result"></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Altitud Maxima vs Combustible</h3><div class="chart-box"><canvas id="ch-opt"></canvas></div></div>
+        <div class="card"><h3>Tabla de Iteraciones</h3><div class="tc" id="opt-table"></div></div>
+    </div>
+</div>
+
+<!-- ==================== SENSIBILIDAD ==================== -->
+<div class="panel" id="p-sens">
+    <div class="card">
+        <h3><span class="dot" style="background:var(--blue)"></span> Analisis de Sensibilidad <span class="method-tag">Barrido parametrico</span></h3>
+        <div class="info">Varia un parametro en un rango y grafica su impacto sobre altitud maxima, tiempo de vuelo, combustible usado y aceleracion maxima. Usa los parametros actuales de la mision como base.</div>
+        <div class="fr">
+            <div class="fg"><label>Parametro</label><select id="sens-param" style="padding:8px 10px;background:#1e293b;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+                <option value="thrust">Empuje (N)</option>
+                <option value="mFuel">Masa combustible (kg)</option>
+                <option value="fuelRate">Tasa consumo (kg/s)</option>
+                <option value="Cd">Coef. arrastre</option>
+                <option value="A">Area frontal (m2)</option>
+                <option value="mDry">Masa seca (kg)</option>
+                <option value="tiltAngle">Pitch inicial (deg)</option>
+                <option value="tiltStart">Inicio gravity turn (s)</option>
+            </select></div>
+            <div class="fg"><label>Minimo</label><input type="number" id="sens-min" value="5000000" step="any"></div>
+            <div class="fg"><label>Maximo</label><input type="number" id="sens-max" value="9000000" step="any"></div>
+            <div class="fg"><label>N puntos</label><input type="number" id="sens-n" value="15" min="3" max="40"></div>
+        </div>
+        <div class="bg"><button class="btn btn-launch" onclick="runSensitivity()">Ejecutar barrido</button></div>
+        <div id="sens-result"></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+        <div class="card"><h3>Altitud maxima</h3><div class="chart-box"><canvas id="ch-sens-alt"></canvas></div></div>
+        <div class="card"><h3>Tiempo total de vuelo</h3><div class="chart-box"><canvas id="ch-sens-t"></canvas></div></div>
+        <div class="card"><h3>Combustible consumido</h3><div class="chart-box"><canvas id="ch-sens-fuel"></canvas></div></div>
+        <div class="card"><h3>Aceleracion maxima (g)</h3><div class="chart-box"><canvas id="ch-sens-g"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Tabla</h3><div class="tc" id="sens-table"></div></div>
+</div>
+
+<!-- ==================== MARCO TEORICO ==================== -->
+<div class="panel" id="p-theory">
+    <div class="grid g2">
+        <div class="card">
+            <h3>Modelo Matematico</h3>
+            <div class="info" style="font-size:13px;line-height:1.8">
+                <b>Sistema de EDOs del cohete:</b><br><br>
+                El movimiento vertical de un cohete se modela con el siguiente sistema de ecuaciones diferenciales ordinarias:<br><br>
+                <div style="background:#0f172a;padding:14px;border-radius:8px;font-family:monospace;margin:8px 0">
+                    dy/dt = v &nbsp;&nbsp;&nbsp;(1) posicion<br>
+                    dv/dt = (T - D - mg) / m &nbsp;&nbsp;(2) velocidad<br>
+                    dm/dt = -q &nbsp;&nbsp;&nbsp;(3) masa<br><br>
+                    donde:<br>
+                    T = empuje del motor (N)<br>
+                    D = 0.5 * rho(y) * v^2 * Cd * A &nbsp;(arrastre)<br>
+                    rho(y) = 1.225 * exp(-y/8500) &nbsp;(densidad aire)<br>
+                    g = 9.81 * (R_tierra / (R_tierra + y))^2<br>
+                    q = tasa de consumo de combustible (kg/s)
+                </div>
+                <b>Condiciones iniciales:</b> y(0)=0, v(0)=0, m(0)=m_seco + m_fuel<br><br>
+                <b>Fases del vuelo:</b><br>
+                1. <span style="color:var(--green)">Ascenso con motor</span>: T > 0, combustible se consume<br>
+                2. <span style="color:var(--blue)">Ascenso balistico</span>: T = 0, solo gravedad y arrastre<br>
+                3. <span style="color:var(--orange)">Descenso</span>: v < 0, caida libre<br>
+                4. <span style="color:var(--red)">Frenado retropropulsivo</span>: T reactivado para aterrizar
+            </div>
+        </div>
+        <div class="card">
+            <h3>Metodos Numericos Aplicados</h3>
+            <div class="info" style="font-size:13px;line-height:1.8">
+                <b>1. Runge-Kutta 4 (RK4)</b> - Clase 7<br>
+                Integra el sistema de EDOs con precision O(h^4). Es el metodo principal de la simulacion.<br><br>
+                <b>2. Euler y Euler Modificado (Heun)</b> - Clase 7<br>
+                Comparados con RK4 para demostrar la importancia del orden del metodo.<br><br>
+                <b>3. Monte Carlo</b> - Clase 6<br>
+                Estimacion probabilistica del exito de la mision con incertidumbres en parametros.<br><br>
+                <b>4. Biseccion</b> - Clase 1<br>
+                Encuentra el combustible minimo para alcanzar la altitud objetivo.<br><br>
+                <b>5. Newton-Raphson</b> - Clase 2<br>
+                Optimizacion mas rapida del combustible con convergencia cuadratica.<br><br>
+                <b>6. Derivacion Numerica</b> - Clase 3<br>
+                Calculo de aceleracion a partir de datos de velocidad.<br><br>
+                <b>7. Integracion Numerica (Simpson)</b> - Clase 5<br>
+                Calculo del impulso total y trabajo realizado por el motor.
+            </div>
+        </div>
+        <div class="card" style="grid-column:span 2">
+            <h3>Parametros Reales del Falcon 9</h3>
+            <table>
+                <tr><th>Parametro</th><th>Valor</th><th>Unidad</th><th>Fuente</th></tr>
+                <tr><td>Masa estructura (1ra etapa)</td><td>25,600</td><td>kg</td><td>SpaceX</td></tr>
+                <tr><td>Masa propelente</td><td>395,700</td><td>kg</td><td>SpaceX</td></tr>
+                <tr><td>Empuje (nivel del mar)</td><td>7,607,000</td><td>N</td><td>9 motores Merlin 1D</td></tr>
+                <tr><td>Isp (nivel del mar)</td><td>282</td><td>s</td><td>SpaceX</td></tr>
+                <tr><td>Diametro</td><td>3.66</td><td>m</td><td>SpaceX</td></tr>
+                <tr><td>Altura total</td><td>70</td><td>m</td><td>SpaceX</td></tr>
+                <tr><td>Cd (estimado)</td><td>0.3</td><td>-</td><td>Aerodinamica tipica</td></tr>
+                <tr><td>Radio Tierra</td><td>6,371,000</td><td>m</td><td>NASA</td></tr>
+                <tr><td>g0</td><td>9.80665</td><td>m/s2</td><td>SI</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div><!-- content -->
+
+<script>
+// ========== CONSTANTES ==========
+const G0 = 9.80665, R_EARTH = 6371000, RHO0 = 1.225, H_SCALE = 8500;
+
+function getParams() {
+    const stage2En = document.getElementById('s-stage2-en').checked;
+    const throttleExpr = (document.getElementById('s-throttle').value || '1').trim();
+    let throttleFn;
+    try {
+        const compiled = math.compile(throttleExpr);
+        throttleFn = (t, y, v) => {
+            try { const r = compiled.evaluate({ t, y, v }); return Math.max(0, Math.min(1, Number(r))); }
+            catch(e) { return 1; }
+        };
+    } catch(e) { throttleFn = () => 1; }
+    return {
+        mDry: parseFloat(document.getElementById('s-mass').value),
+        mFuel: parseFloat(document.getElementById('s-fuel').value),
+        thrust: parseFloat(document.getElementById('s-thrust').value),
+        fuelRate: parseFloat(document.getElementById('s-fuelrate').value),
+        Cd: parseFloat(document.getElementById('s-cd').value),
+        A: parseFloat(document.getElementById('s-area').value),
+        target: parseFloat(document.getElementById('s-target').value) * 1000,
+        h: parseFloat(document.getElementById('s-h').value),
+        tiltStart: parseFloat(document.getElementById('s-tilt-start').value),
+        tiltAngle: parseFloat(document.getElementById('s-tilt-angle').value),
+        throttleFn,
+        throttleExpr,
+        stage2: {
+            enabled: stage2En,
+            mDry: parseFloat(document.getElementById('s-stage2-mass').value),
+            mFuel: parseFloat(document.getElementById('s-stage2-fuel').value),
+            thrust: parseFloat(document.getElementById('s-stage2-thrust').value),
+            fuelRate: parseFloat(document.getElementById('s-stage2-fuelrate').value)
+        }
+    };
+}
+
+function rho(y) { return RHO0 * Math.exp(-Math.max(0, y) / H_SCALE); }
+function grav(y) { return G0 * (R_EARTH / (R_EARTH + Math.max(0, y))) ** 2; }
+function mach(y, v) { const T = 288.15 - 0.0065 * Math.min(y, 11000); return Math.abs(v) / Math.sqrt(1.4 * 287 * Math.max(T, 50)); }
+
+function stageProps(p, stage) {
+    if (stage === 2 && p.stage2.enabled) return { thrust: p.stage2.thrust, fuelRate: p.stage2.fuelRate };
+    return { thrust: p.thrust, fuelRate: p.fuelRate };
+}
+// Masa seca total (depende de si la 2da etapa sigue atachada)
+function dryMass(p, stage) {
+    if (!p.stage2.enabled) return p.mDry;
+    if (stage === 1) return p.mDry + p.stage2.mDry + p.stage2.mFuel; // stage2 cargada atachada
+    return p.stage2.mDry;
+}
+
+// Sistema 2D: state = [x, y, vx, vy, fuel]
+function rocketDerivs2D(state, p, phase, t, stage) {
+    const [x, y, vx, vy, fuel] = state;
+    const sp = stageProps(p, stage);
+    const m = dryMass(p, stage) + Math.max(0, fuel);
+    const speed = Math.hypot(vx, vy);
+
+    // Empuje (magnitud + direccion)
+    let T = 0, dm = 0;
+    if (phase === 'ascent' && fuel > 0) {
+        const thr = p.throttleFn ? p.throttleFn(t, y, speed) : 1;
+        T = sp.thrust * thr;
+        dm = -sp.fuelRate * thr;
+    } else if (phase === 'landing' && fuel > 0) {
+        // Suicide burn: mas empuje cuanto mas cerca del suelo y mas rapido caiga
+        if (y < 5000 && vy < -50) {
+            const thr = Math.min(1, 0.4 + (-vy - 50) / 300);
+            T = sp.thrust * thr; dm = -sp.fuelRate * thr;
+        }
+        if (y < 1000 && vy < -10) {
+            const thr = Math.min(1, 0.7 + (-vy - 10) / 60);
+            T = sp.thrust * thr; dm = -sp.fuelRate * thr;
+        }
+    }
+
+    // Direccion del empuje
+    let ux = 0, uy = 1;
+    if (phase === 'ascent') {
+        const a = (p.tiltAngle || 0) * Math.PI / 180;
+        const KICK_DUR = 8; // s de kick tras iniciar gravity turn
+        if (t < p.tiltStart) { ux = 0; uy = 1; }
+        else if (t < p.tiltStart + KICK_DUR || speed < 50) {
+            ux = Math.sin(a); uy = Math.cos(a);
+        } else { ux = vx / speed; uy = vy / speed; } // prograde
+    } else if (phase === 'landing') {
+        if (speed > 1) { ux = -vx / speed; uy = -vy / speed; } // retrograde
+        else { ux = 0; uy = 1; }
+    }
+
+    // Arrastre (contrario a la velocidad)
+    const D = 0.5 * rho(y) * speed * speed * p.Cd * p.A;
+    let Fx = T * ux, Fy = T * uy;
+    if (speed > 0.01) { Fx -= D * vx / speed; Fy -= D * vy / speed; }
+    Fy -= m * grav(y);
+
+    return [vx, vy, Fx / m, Fy / m, dm];
+}
+
+function rk4Step(state, p, phase, dt, t, stage) {
+    const k1 = rocketDerivs2D(state, p, phase, t, stage);
+    const s2 = state.map((s, i) => s + dt / 2 * k1[i]);
+    const k2 = rocketDerivs2D(s2, p, phase, t + dt / 2, stage);
+    const s3 = state.map((s, i) => s + dt / 2 * k2[i]);
+    const k3 = rocketDerivs2D(s3, p, phase, t + dt / 2, stage);
+    const s4 = state.map((s, i) => s + dt * k3[i]);
+    const k4 = rocketDerivs2D(s4, p, phase, t + dt, stage);
+    return state.map((s, i) => s + dt / 6 * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+}
+function eulerStep(state, p, phase, dt, t, stage) {
+    const d = rocketDerivs2D(state, p, phase, t, stage);
+    return state.map((s, i) => s + dt * d[i]);
+}
+function heunStep(state, p, phase, dt, t, stage) {
+    const d1 = rocketDerivs2D(state, p, phase, t, stage);
+    const sPred = state.map((s, i) => s + dt * d1[i]);
+    const d2 = rocketDerivs2D(sPred, p, phase, t + dt, stage);
+    return state.map((s, i) => s + dt / 2 * (d1[i] + d2[i]));
+}
+
+// ========== FULL SIMULATION (2D + etapas) ==========
+function simulateFull(p, stepFn, dt) {
+    let state = [0, 0, 0, 0, p.mFuel]; // [x, y, vx, vy, fuel]
+    let stage = 1, phase = 'ascent', t = 0, maxAlt = 0, fuelUsed = 0, maxAcc = 0, separated = false;
+    const totalFuelStart = p.mFuel + (p.stage2.enabled ? p.stage2.mFuel : 0);
+    const data = [{ t: 0, x: 0, y: 0, vx: 0, vy: 0, v: 0, a: 0, fuel: p.mFuel, mass: dryMass(p, 1) + p.mFuel, phase, stage, mach: 0, drag: 0 }];
+
+    const MAX_STEPS = 500000, MAX_T = 10000;
+    for (let step = 0; step < MAX_STEPS; step++) {
+        const [x, y, vx, vy, fuel] = state;
+        const speed = Math.hypot(vx, vy);
+
+        // Separacion de etapas
+        if (!separated && stage === 1 && p.stage2.enabled && fuel <= 0.5) {
+            stage = 2;
+            state[4] = p.stage2.mFuel; // reset fuel a la 2da etapa
+            separated = true;
+        }
+        // Transiciones de fase
+        if (phase === 'ascent' && fuel <= 0 && !(p.stage2.enabled && stage === 1)) phase = 'coast';
+        if (phase === 'coast' && vy <= 0) phase = 'descent';
+        if (phase === 'descent' && y < 10000) phase = 'landing';
+
+        const newState = stepFn(state, p, phase, dt, t, stage);
+        if (newState[1] < 0 && t > 1) { newState[1] = 0; newState[3] = 0; state = newState; t += dt; break; }
+        state = [newState[0], Math.max(0, newState[1]), newState[2], newState[3], Math.max(0, newState[4])];
+        t += dt;
+        if (state[1] > maxAlt) maxAlt = state[1];
+
+        const m = dryMass(p, stage) + Math.max(0, state[4]);
+        const der = rocketDerivs2D(state, p, phase, t, stage);
+        const ax = der[2], ay = der[3];
+        const accMag = Math.hypot(ax, ay);
+        if (accMag > maxAcc) maxAcc = accMag;
+        const spd = Math.hypot(state[2], state[3]);
+        const D = 0.5 * rho(state[1]) * spd * spd * p.Cd * p.A;
+        data.push({
+            t, x: state[0], y: state[1], vx: state[2], vy: state[3],
+            v: (state[3] >= 0 ? spd : -spd),
+            fuel: state[4], mass: m, phase, stage,
+            a: ay, mach: mach(state[1], spd), drag: D / 1000
+        });
+        if (t > MAX_T) break;
+    }
+    fuelUsed = totalFuelStart - state[4] - (separated ? 0 : (p.stage2.enabled ? p.stage2.mFuel : 0));
+    return { data, maxAlt, fuelUsed, maxAcc, tFinal: t };
+}
+
+// ========== ANIMATION ==========
+let simData = null, animFrame = null, animIdx = 0, animRunning = false;
+
+let lastParams = null;
+function startSimulation() {
+    const p = getParams();
+    lastParams = p;
+    const result = simulateFull(p, rk4Step, p.h);
+    simData = result.data;
+    animIdx = 0;
+    animRunning = true;
+    const sep = simData.find(d => d.stage === 2);
+    const sepInfo = sep ? ` | Separacion a t=${sep.t.toFixed(1)}s, h=${(sep.y/1000).toFixed(1)}km` : '';
+    const downrange = Math.abs(simData[simData.length-1].x) / 1000;
+    document.getElementById('sim-status').innerHTML = `<div class="result-box">Simulacion completa: ${simData.length} pasos | Alt max: ${(result.maxAlt/1000).toFixed(1)} km | Downrange: ${downrange.toFixed(1)} km | Tiempo: ${simData[simData.length-1].t.toFixed(1)} s${sepInfo}</div>`;
+    animate();
+}
+
+function stopSimulation() { animRunning = false; if (animFrame) cancelAnimationFrame(animFrame); }
+function resetSimulation() { stopSimulation(); simData = null; animIdx = 0; drawRocketScene(null); updateTelemetry(null); }
+
+function animate() {
+    if (!animRunning || !simData) return;
+    const speed = Math.max(1, Math.floor(simData.length / 400));
+    animIdx = Math.min(animIdx + speed, simData.length - 1);
+    const d = simData[animIdx];
+    drawRocketScene(d);
+    updateTelemetry(d);
+    if (animIdx < simData.length - 1) { animFrame = requestAnimationFrame(animate); }
+    else {
+        animRunning = false;
+        drawTrajectoryCharts();
+    }
+}
+
+function updateTelemetry(d) {
+    if (!d) { ['t-alt','t-vel','t-acc','t-fuel','t-mass','t-drag','t-mach','t-phase'].forEach(id => document.getElementById(id).textContent = id === 't-phase' ? 'LISTO' : '0'); return; }
+    document.getElementById('t-alt').textContent = (d.y / 1000).toFixed(1);
+    const spd = Math.hypot(d.vx || 0, d.vy || d.v || 0);
+    document.getElementById('t-vel').textContent = spd.toFixed(0);
+    document.getElementById('t-acc').textContent = d.a.toFixed(1);
+    const p = lastParams || getParams();
+    const fuelRef = (d.stage === 2 ? p.stage2.mFuel : p.mFuel) || 1;
+    document.getElementById('t-fuel').textContent = (Math.max(0, d.fuel) / fuelRef * 100).toFixed(0) + '%';
+    document.getElementById('t-mass').textContent = (d.mass / 1000).toFixed(1);
+    document.getElementById('t-drag').textContent = d.drag.toFixed(1);
+    document.getElementById('t-mach').textContent = d.mach.toFixed(2);
+    const phases = { ascent: 'ASCENSO', coast: 'BALISTICO', descent: 'DESCENSO', landing: 'ATERRIZAJE' };
+    const stageTag = (d.stage === 2 ? ' S2' : '');
+    document.getElementById('t-phase').textContent = (phases[d.phase] || d.phase) + stageTag;
+    document.getElementById('t-phase').style.color = d.phase === 'ascent' ? '#22c55e' : d.phase === 'landing' ? '#ef4444' : '#60a5fa';
+}
+
+// ========== ROCKET VISUALIZATION ==========
+function drawRocketScene(d) {
+    const canvas = document.getElementById('sim-cv');
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+
+    // Background: space gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#000011');
+    grad.addColorStop(0.6, '#000033');
+    grad.addColorStop(1, '#1a1a3e');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 80; i++) {
+        const sx = (Math.sin(i * 127.1) * 0.5 + 0.5) * W;
+        const sy = (Math.cos(i * 311.7) * 0.5 + 0.5) * H * 0.7;
+        ctx.globalAlpha = 0.3 + Math.random() * 0.5;
+        ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+
+    // Ground
+    ctx.fillStyle = '#1a3a1a';
+    ctx.fillRect(0, H - 40, W, 40);
+    ctx.fillStyle = '#2a4a2a';
+    ctx.fillRect(0, H - 40, W, 2);
+
+    // Launch pad
+    ctx.fillStyle = '#555';
+    ctx.fillRect(W / 2 - 30, H - 48, 60, 10);
+    ctx.fillStyle = '#777';
+    ctx.fillRect(W / 2 - 20, H - 50, 40, 4);
+
+    if (!d) return;
+
+    // Rocket position (mapped to screen, 2D)
+    const maxAlt = simData ? Math.max(...simData.map(s => s.y)) : 100000;
+    const maxAbsX = simData ? Math.max(1000, ...simData.map(s => Math.abs(s.x || 0))) : 1000;
+    const rocketY = H - 50 - (d.y / Math.max(maxAlt * 1.1, 1000)) * (H - 100);
+    const rocketX = W / 2 + ((d.x || 0) / (maxAbsX * 1.2)) * (W / 2 - 30);
+
+    // Rocket body
+    const rH = 30, rW = 8;
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.moveTo(rocketX - rW / 2, rocketY + rH / 2);
+    ctx.lineTo(rocketX - rW / 2, rocketY - rH / 2 + 5);
+    ctx.lineTo(rocketX, rocketY - rH / 2 - 5); // nose
+    ctx.lineTo(rocketX + rW / 2, rocketY - rH / 2 + 5);
+    ctx.lineTo(rocketX + rW / 2, rocketY + rH / 2);
+    ctx.closePath(); ctx.fill();
+
+    // Fins
+    ctx.fillStyle = '#64748b';
+    ctx.beginPath(); ctx.moveTo(rocketX - rW / 2, rocketY + rH / 2); ctx.lineTo(rocketX - rW / 2 - 5, rocketY + rH / 2 + 5); ctx.lineTo(rocketX - rW / 2, rocketY + rH / 2 - 5); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(rocketX + rW / 2, rocketY + rH / 2); ctx.lineTo(rocketX + rW / 2 + 5, rocketY + rH / 2 + 5); ctx.lineTo(rocketX + rW / 2, rocketY + rH / 2 - 5); ctx.fill();
+
+    // Flame (if thrusting)
+    if (d.phase === 'ascent' || (d.phase === 'landing' && d.fuel > 0 && (d.vy || d.v) < -10)) {
+        const flameLen = 15 + Math.random() * 10;
+        const flameDir = d.phase === 'landing' ? -1 : 1;
+        const fy = rocketY + rH / 2 * flameDir;
+        ctx.fillStyle = '#ff6600';
+        ctx.beginPath();
+        ctx.moveTo(rocketX - 4, fy);
+        ctx.lineTo(rocketX, fy + flameLen * flameDir);
+        ctx.lineTo(rocketX + 4, fy);
+        ctx.fill();
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.moveTo(rocketX - 2, fy);
+        ctx.lineTo(rocketX, fy + flameLen * 0.6 * flameDir);
+        ctx.lineTo(rocketX + 2, fy);
+        ctx.fill();
+    }
+
+    // Altitude indicator
+    const spdT = Math.hypot(d.vx || 0, d.vy || d.v || 0);
+    ctx.fillStyle = '#60a5fa'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(`ALT: ${(d.y / 1000).toFixed(1)} km`, 10, 20);
+    ctx.fillText(`VEL: ${spdT.toFixed(0)} m/s`, 10, 36);
+    ctx.fillText(`DR : ${((d.x||0)/1000).toFixed(1)} km`, 10, 52);
+    ctx.fillText(`T+${d.t.toFixed(1)}s` + (d.stage === 2 ? ' S2' : ''), 10, 68);
+
+    // Phase indicator
+    const phases = { ascent: ['ASCENSO', '#22c55e'], coast: ['BALISTICO', '#3b82f6'], descent: ['DESCENSO', '#f97316'], landing: ['ATERRIZAJE', '#ef4444'] };
+    const [pName, pColor] = phases[d.phase] || ['?', '#fff'];
+    ctx.fillStyle = pColor; ctx.font = 'bold 14px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(pName, W - 10, 20);
+
+    // Trail (2D)
+    if (simData) {
+        ctx.strokeStyle = 'rgba(96,165,250,0.5)'; ctx.lineWidth = 1.5; ctx.beginPath();
+        const start = Math.max(0, animIdx - 600);
+        for (let i = start; i <= animIdx; i++) {
+            const sy = H - 50 - (simData[i].y / Math.max(maxAlt * 1.1, 1000)) * (H - 100);
+            const sx = W / 2 + ((simData[i].x || 0) / (maxAbsX * 1.2)) * (W / 2 - 30);
+            i === start ? ctx.moveTo(sx, sy) : ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+    }
+}
+
+// ========== CHART DRAWING ==========
+function drawChart2(canvasId, datasets, xlabel, ylabel) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    const W = rect.width, H = rect.height;
+    const m = { t: 15, r: 15, b: 30, l: 55 };
+    const cw = W - m.l - m.r, ch = H - m.t - m.b;
+    ctx.fillStyle = '#111827'; ctx.fillRect(0, 0, W, H);
+
+    let allX = [], allY = [];
+    datasets.forEach(ds => { ds.x.forEach(v => { if (isFinite(v)) allX.push(v); }); ds.y.forEach(v => { if (isFinite(v)) allY.push(v); }); });
+    if (!allX.length || !allY.length) return;
+    let xMin = Math.min(...allX), xMax = Math.max(...allX), yMin = Math.min(...allY, 0), yMax = Math.max(...allY);
+    const xP = (xMax - xMin) * 0.02 || 1, yP = (yMax - yMin) * 0.05 || 1;
+    xMin -= xP; xMax += xP; yMin -= yP; yMax += yP;
+    const tx = x => m.l + (x - xMin) / (xMax - xMin) * cw;
+    const ty = y => m.t + ch - (y - yMin) / (yMax - yMin) * ch;
+
+    // Grid
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 6; i++) { const y = ty(yMin + (yMax - yMin) * i / 6); ctx.beginPath(); ctx.moveTo(m.l, y); ctx.lineTo(m.l + cw, y); ctx.stroke(); }
+    // Zero line
+    if (yMin < 0 && yMax > 0) { ctx.strokeStyle = '#374151'; ctx.beginPath(); ctx.moveTo(m.l, ty(0)); ctx.lineTo(m.l + cw, ty(0)); ctx.stroke(); }
+    // Labels
+    ctx.fillStyle = '#64748b'; ctx.font = '10px system-ui';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 6; i++) { const v = xMin + (xMax - xMin) * i / 6; ctx.fillText(v.toFixed(0), tx(v), m.t + ch + 14); }
+    ctx.textAlign = 'right';
+    for (let i = 0; i <= 6; i++) { const v = yMin + (yMax - yMin) * i / 6; ctx.fillText(v.toFixed(1), m.l - 4, ty(v) + 3); }
+    ctx.fillText(ylabel || '', m.l - 4, m.t - 4);
+    ctx.textAlign = 'center'; ctx.fillText(xlabel || '', m.l + cw / 2, m.t + ch + 26);
+
+    // Clip & draw
+    ctx.save(); ctx.beginPath(); ctx.rect(m.l, m.t, cw, ch); ctx.clip();
+    const colors = ['#3b82f6', '#ef4444', '#22c55e', '#f97316', '#a855f7', '#06b6d4'];
+    datasets.forEach((ds, di) => {
+        ctx.strokeStyle = ds.color || colors[di % colors.length]; ctx.lineWidth = ds.lineWidth || 2;
+        ctx.beginPath(); let started = false;
+        for (let i = 0; i < ds.x.length; i++) {
+            if (!isFinite(ds.y[i])) continue;
+            const px = tx(ds.x[i]), py = ty(ds.y[i]);
+            started ? ctx.lineTo(px, py) : (ctx.moveTo(px, py), started = true);
+        }
+        ctx.stroke();
+    });
+    ctx.restore();
+    // Legend
+    if (datasets.some(d => d.label)) {
+        let lx = m.l + 10, ly = m.t + 12; ctx.font = '11px system-ui';
+        datasets.forEach((ds, di) => {
+            if (!ds.label) return;
+            ctx.fillStyle = ds.color || colors[di % colors.length]; ctx.fillRect(lx, ly - 5, 12, 3);
+            ctx.fillStyle = '#e2e8f0'; ctx.textAlign = 'left'; ctx.fillText(ds.label, lx + 16, ly); ly += 16;
+        });
+    }
+}
+
+// ========== TRAJECTORY CHARTS ==========
+function drawTrajectoryCharts() {
+    if (!simData) return;
+    const ts = simData.map(d => d.t);
+    drawChart2('ch-alt', [{ x: ts, y: simData.map(d => d.y / 1000), label: 'Altitud (km)' }], 'Tiempo (s)', 'km');
+    drawChart2('ch-vel', [
+        { x: ts, y: simData.map(d => Math.hypot(d.vx || 0, d.vy || d.v || 0)), label: 'Rapidez |v| (m/s)', color: '#22c55e' },
+        { x: ts, y: simData.map(d => d.vy !== undefined ? d.vy : d.v), label: 'Vel. vertical (m/s)', color: '#3b82f6' },
+        { x: ts, y: simData.map(d => d.vx || 0), label: 'Vel. horizontal (m/s)', color: '#f97316' }
+    ], 'Tiempo (s)', 'm/s');
+    drawChart2('ch-acc', [{ x: ts, y: simData.map(d => d.a), label: 'Aceleracion vert. (m/s2)', color: '#f97316' }], 'Tiempo (s)', 'm/s2');
+    drawChart2('ch-mass', [{ x: ts, y: simData.map(d => d.mass / 1000), label: 'Masa total (t)', color: '#a855f7' }], 'Tiempo (s)', 'toneladas');
+    drawChart2('ch-xy', [{ x: simData.map(d => (d.x || 0) / 1000), y: simData.map(d => d.y / 1000), label: 'Trayectoria 2D', color: '#60a5fa' }], 'Downrange X (km)', 'Altitud Y (km)');
+
+    // Tabla
+    let html = '<table><tr><th>t (s)</th><th>X (km)</th><th>Alt (km)</th><th>|v| (m/s)</th><th>Vy (m/s)</th><th>Acel (m/s2)</th><th>Mach</th><th>Fuel (kg)</th><th>Fase</th><th>S</th></tr>';
+    const step = Math.max(1, Math.floor(simData.length / 100));
+    for (let i = 0; i < simData.length; i += step) {
+        const d = simData[i];
+        const vxx = d.vx || 0, vyy = d.vy !== undefined ? d.vy : d.v;
+        const spd = Math.hypot(vxx, vyy);
+        html += `<tr><td>${d.t.toFixed(1)}</td><td>${((d.x||0)/1000).toFixed(2)}</td><td>${(d.y/1000).toFixed(2)}</td><td>${spd.toFixed(1)}</td><td>${vyy.toFixed(1)}</td><td>${d.a.toFixed(2)}</td><td>${d.mach.toFixed(2)}</td><td>${d.fuel.toFixed(0)}</td><td>${d.phase}</td><td>${d.stage||1}</td></tr>`;
+    }
+    document.getElementById('traj-table').innerHTML = html + '</table>';
+}
+
+// ========== EXPORT CSV / PNG ==========
+function exportCSV() {
+    if (!simData) { alert('Ejecute una simulacion primero.'); return; }
+    const header = ['t_s','x_m','y_m','vx_m_s','vy_m_s','speed_m_s','accel_vert_m_s2','mass_kg','fuel_kg','drag_kN','mach','phase','stage'];
+    const rows = [header.join(',')];
+    simData.forEach(d => {
+        const vx = d.vx || 0, vy = d.vy !== undefined ? d.vy : d.v, spd = Math.hypot(vx, vy);
+        rows.push([d.t, d.x||0, d.y, vx, vy, spd, d.a, d.mass, d.fuel, d.drag, d.mach, d.phase, d.stage||1].map(v => typeof v === 'number' ? v.toFixed(4) : v).join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `cohete_simulacion_${Date.now()}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function downloadCanvasPNG(canvasId, filename) {
+    const c = document.getElementById(canvasId); if (!c) return;
+    const link = document.createElement('a');
+    link.href = c.toDataURL('image/png');
+    link.download = filename;
+    document.body.appendChild(link); link.click(); link.remove();
+}
+function exportAllPNG() {
+    if (!simData) { alert('Ejecute una simulacion primero.'); return; }
+    drawTrajectoryCharts(); // asegurar render
+    const ids = [['ch-alt','altitud'], ['ch-vel','velocidad'], ['ch-acc','aceleracion'], ['ch-mass','masa'], ['ch-xy','trayectoria_2d']];
+    ids.forEach(([id, name], k) => setTimeout(() => downloadCanvasPNG(id, `cohete_${name}.png`), k * 250));
+}
+
+// ========== SENSIBILIDAD ==========
+const SENS_LABELS = {
+    thrust: 'Empuje (N)', mFuel: 'Masa combustible (kg)', fuelRate: 'Tasa consumo (kg/s)',
+    Cd: 'Coef. arrastre', A: 'Area frontal (m2)', mDry: 'Masa seca (kg)',
+    tiltAngle: 'Pitch inicial (deg)', tiltStart: 'Inicio gravity turn (s)'
+};
+function runSensitivity() {
+    const base = getParams();
+    const param = document.getElementById('sens-param').value;
+    const pmin = parseFloat(document.getElementById('sens-min').value);
+    const pmax = parseFloat(document.getElementById('sens-max').value);
+    const N = Math.max(3, Math.min(40, parseInt(document.getElementById('sens-n').value)));
+    if (pmax <= pmin) { document.getElementById('sens-result').innerHTML = '<div class="result-box err">Rango invalido.</div>'; return; }
+
+    const xs = [], altMax = [], tFin = [], fuelC = [], accMaxG = [];
+    for (let i = 0; i < N; i++) {
+        const val = pmin + (pmax - pmin) * i / (N - 1);
+        const p = { ...base, stage2: { ...base.stage2 } };
+        p[param] = val;
+        const r = simulateFull(p, rk4Step, Math.max(0.5, base.h));
+        xs.push(val);
+        altMax.push(r.maxAlt / 1000);
+        tFin.push(r.tFinal);
+        fuelC.push(r.fuelUsed);
+        accMaxG.push(r.maxAcc / G0);
+    }
+    const xlab = SENS_LABELS[param] || param;
+    drawChart2('ch-sens-alt', [{ x: xs, y: altMax, label: 'Alt max (km)', color: '#3b82f6' }], xlab, 'km');
+    drawChart2('ch-sens-t', [{ x: xs, y: tFin, label: 'Tiempo (s)', color: '#22c55e' }], xlab, 's');
+    drawChart2('ch-sens-fuel', [{ x: xs, y: fuelC, label: 'Fuel consumido (kg)', color: '#f97316' }], xlab, 'kg');
+    drawChart2('ch-sens-g', [{ x: xs, y: accMaxG, label: 'a max (g)', color: '#ef4444' }], xlab, 'g');
+
+    // Resumen
+    const argmaxAlt = altMax.indexOf(Math.max(...altMax));
+    const dAlt = altMax[altMax.length - 1] - altMax[0];
+    document.getElementById('sens-result').innerHTML = `<div class="result-box">
+        <b>Barrido de ${xlab}:</b> ${N} puntos entre ${pmin} y ${pmax}.<br>
+        Alt max optima = ${altMax[argmaxAlt].toFixed(1)} km en ${xlab}=${xs[argmaxAlt].toFixed(2)}.<br>
+        Variacion de alt max entre extremos: ${dAlt >= 0 ? '+' : ''}${dAlt.toFixed(1)} km.
+    </div>`;
+
+    // Tabla
+    let html = `<table><tr><th>${xlab}</th><th>Alt max (km)</th><th>Tiempo (s)</th><th>Fuel (kg)</th><th>a max (g)</th></tr>`;
+    for (let i = 0; i < N; i++) html += `<tr><td>${xs[i].toFixed(2)}</td><td>${altMax[i].toFixed(2)}</td><td>${tFin[i].toFixed(1)}</td><td>${fuelC[i].toFixed(0)}</td><td>${accMaxG[i].toFixed(2)}</td></tr>`;
+    document.getElementById('sens-table').innerHTML = html + '</table>';
+}
+
+// ========== METHOD COMPARISON ==========
+function runMethodComparison() {
+    const p = getParams();
+    const h = parseFloat(document.getElementById('m-h').value);
+    const tf = parseFloat(document.getElementById('m-tf').value);
+    p.h = h;
+
+    const rEuler = simulateFull(p, eulerStep, h);
+    const rHeun = simulateFull(p, heunStep, h);
+    const rRK4 = simulateFull(p, rk4Step, h);
+    const rRef = simulateFull(p, rk4Step, h / 10); // Reference
+
+    // Interpolate reference to same time points
+    function interpRef(data, ref) {
+        return data.map(d => {
+            const ri = ref.findIndex(r => r.t >= d.t);
+            if (ri <= 0) return ref[0].y;
+            const r0 = ref[ri - 1], r1 = ref[ri];
+            return r0.y + (r1.y - r0.y) * (d.t - r0.t) / (r1.t - r0.t);
+        });
+    }
+
+    const refAtEuler = interpRef(rEuler.data, rRef.data);
+    const refAtHeun = interpRef(rHeun.data, rRef.data);
+    const refAtRK4 = interpRef(rRK4.data, rRef.data);
+
+    const ts1 = rEuler.data.map(d => d.t), ts2 = rHeun.data.map(d => d.t), ts3 = rRK4.data.map(d => d.t);
+    drawChart2('ch-meth', [
+        { x: ts1, y: rEuler.data.map(d => d.y / 1000), label: 'Euler', color: '#ef4444' },
+        { x: ts2, y: rHeun.data.map(d => d.y / 1000), label: 'Heun', color: '#f97316' },
+        { x: ts3, y: rRK4.data.map(d => d.y / 1000), label: 'RK4', color: '#3b82f6' },
+        { x: rRef.data.map(d => d.t), y: rRef.data.map(d => d.y / 1000), label: 'Ref (h/10)', color: '#22c55e', lineWidth: 1 }
+    ], 'Tiempo (s)', 'Altitud (km)');
+
+    drawChart2('ch-merr', [
+        { x: ts1, y: rEuler.data.map((d, i) => Math.abs(d.y - refAtEuler[i]) / 1000), label: 'Error Euler', color: '#ef4444' },
+        { x: ts2, y: rHeun.data.map((d, i) => Math.abs(d.y - refAtHeun[i]) / 1000), label: 'Error Heun', color: '#f97316' },
+        { x: ts3, y: rRK4.data.map((d, i) => Math.abs(d.y - refAtRK4[i]) / 1000), label: 'Error RK4', color: '#3b82f6' }
+    ], 'Tiempo (s)', 'Error (km)');
+
+    // Result
+    const maxErrE = Math.max(...rEuler.data.map((d, i) => Math.abs(d.y - refAtEuler[i])));
+    const maxErrH = Math.max(...rHeun.data.map((d, i) => Math.abs(d.y - refAtHeun[i])));
+    const maxErrR = Math.max(...rRK4.data.map((d, i) => Math.abs(d.y - refAtRK4[i])));
+    document.getElementById('m-result').innerHTML = `<div class="result-box">
+        <b>Error maximo absoluto (h=${h}s):</b><br>
+        Euler: ${(maxErrE / 1000).toFixed(3)} km | Heun: ${(maxErrH / 1000).toFixed(3)} km | RK4: ${(maxErrR / 1000).toFixed(6)} km<br>
+        <b>Altitud max:</b> Euler: ${(rEuler.maxAlt / 1000).toFixed(1)} km | Heun: ${(rHeun.maxAlt / 1000).toFixed(1)} km | RK4: ${(rRK4.maxAlt / 1000).toFixed(1)} km | Ref: ${(rRef.maxAlt / 1000).toFixed(1)} km
+    </div>`;
+
+    // Table
+    let html = '<table><tr><th>t(s)</th><th>Alt Euler</th><th>Alt Heun</th><th>Alt RK4</th><th>Alt Ref</th><th>Err Euler</th><th>Err Heun</th><th>Err RK4</th></tr>';
+    const step = Math.max(1, Math.floor(rRK4.data.length / 30));
+    for (let i = 0; i < rRK4.data.length; i += step) {
+        const t = rRK4.data[i].t;
+        const ie = rEuler.data.findIndex(d => d.t >= t);
+        const ih = rHeun.data.findIndex(d => d.t >= t);
+        if (ie < 0 || ih < 0) continue;
+        const re = refAtRK4[i];
+        html += `<tr><td>${t.toFixed(1)}</td><td>${(rEuler.data[ie].y/1000).toFixed(2)}</td><td>${(rHeun.data[ih].y/1000).toFixed(2)}</td><td>${(rRK4.data[i].y/1000).toFixed(2)}</td><td>${(re/1000).toFixed(2)}</td>`;
+        html += `<td>${(Math.abs(rEuler.data[ie].y-refAtEuler[ie])/1000).toFixed(4)}</td><td>${(Math.abs(rHeun.data[ih].y-refAtHeun[ih])/1000).toFixed(4)}</td><td>${(Math.abs(rRK4.data[i].y-refAtRK4[i])/1000).toFixed(6)}</td></tr>`;
+    }
+    document.getElementById('meth-table').innerHTML = html + '</table>';
+}
+
+// ========== MONTE CARLO ==========
+function runMonteCarlo() {
+    const p = getParams();
+    const N = parseInt(document.getElementById('mc-n').value);
+    const thrustUnc = parseFloat(document.getElementById('mc-thrust').value) / 100;
+    const fuelUnc = parseFloat(document.getElementById('mc-fuel').value) / 100;
+    const zone = parseFloat(document.getElementById('mc-zone').value);
+
+    const maxAlts = [], landingDevs = [];
+    let successes = 0;
+
+    for (let i = 0; i < N; i++) {
+        const pi = { ...p };
+        pi.thrust = p.thrust * (1 + (Math.random() * 2 - 1) * thrustUnc);
+        pi.mFuel = p.mFuel * (1 + (Math.random() * 2 - 1) * fuelUnc);
+        pi.Cd = p.Cd * (1 + (Math.random() * 2 - 1) * 0.1);
+        // Wind: random lateral force equivalent
+        const windDev = (Math.random() * 2 - 1) * 1000; // meters deviation
+
+        const result = simulateFull(pi, rk4Step, 2); // coarse step for speed
+        maxAlts.push(result.maxAlt / 1000);
+        landingDevs.push(windDev);
+        if (Math.abs(windDev) < zone) successes++;
+    }
+
+    const prob = successes / N;
+    const meanAlt = maxAlts.reduce((a, b) => a + b, 0) / N;
+    const stdAlt = Math.sqrt(maxAlts.reduce((s, v) => s + (v - meanAlt) ** 2, 0) / (N - 1));
+
+    document.getElementById('mc-result').innerHTML = `<div class="result-box">
+        <b>Probabilidad de aterrizaje exitoso:</b> ${(prob * 100).toFixed(1)}% (${successes}/${N})<br>
+        <b>Altitud maxima:</b> media = ${meanAlt.toFixed(1)} km | std = ${stdAlt.toFixed(1)} km<br>
+        <b>IC 95%:</b> [${(meanAlt - 1.96 * stdAlt).toFixed(1)}, ${(meanAlt + 1.96 * stdAlt).toFixed(1)}] km
+    </div>`;
+
+    // Histogram of max altitudes
+    const nBins = 30;
+    const aMin = Math.min(...maxAlts), aMax = Math.max(...maxAlts);
+    const binW = (aMax - aMin) / nBins || 1;
+    const bins = new Array(nBins).fill(0);
+    maxAlts.forEach(a => { const bi = Math.min(nBins - 1, Math.floor((a - aMin) / binW)); bins[bi]++; });
+    const binX = [], binY = [];
+    bins.forEach((c, i) => { binX.push(aMin + (i + 0.5) * binW); binY.push(c); });
+    drawChart2('ch-mc1', [{ x: binX, y: binY, label: 'Frecuencia', color: '#3b82f6' }], 'Alt max (km)', 'Frecuencia');
+
+    // Landing scatter
+    const scX = landingDevs, scY = maxAlts;
+    drawChart2('ch-mc2', [{ x: scX, y: scY, label: 'Simulaciones', color: 'rgba(59,130,246,0.4)', lineWidth: 0 }], 'Desviacion lateral (m)', 'Alt max (km)');
+}
+
+// ========== OPTIMIZATION ==========
+function getMaxAlt(fuel) {
+    const p = getParams();
+    p.mFuel = fuel;
+    return simulateFull(p, rk4Step, 2).maxAlt;
+}
+
+function runOptimBisect() {
+    const target = parseFloat(document.getElementById('o-target').value) * 1000;
+    let a = parseFloat(document.getElementById('o-fmin').value), b = parseFloat(document.getElementById('o-fmax').value);
+    const tol = parseFloat(document.getElementById('o-tol').value);
+    const f = fuel => getMaxAlt(fuel) - target;
+
+    if (f(a) * f(b) > 0) { document.getElementById('o-result').innerHTML = '<div class="result-box err">f(a)*f(b) > 0. Ajuste los limites.</div>'; return; }
+
+    const rows = [];
+    for (let i = 1; i <= 50; i++) {
+        const c = (a + b) / 2, fc = f(c);
+        rows.push({ i, a, b, c, fc: fc / 1000, err: (b - a) / 2 });
+        if (Math.abs(fc) < 100 || (b - a) / 2 < tol) break;
+        if (f(a) * fc < 0) b = c; else a = c;
+    }
+
+    const L = rows[rows.length - 1];
+    document.getElementById('o-result').innerHTML = `<div class="result-box"><b>Biseccion:</b> Combustible minimo = ${L.c.toFixed(0)} kg | Alt max = ${((L.fc * 1000 + target) / 1000).toFixed(1)} km | Iter: ${L.i}</div>`;
+
+    // Chart
+    const fuels = [], alts = [];
+    for (let f = 100000; f <= 500000; f += 10000) { fuels.push(f / 1000); alts.push(getMaxAlt(f) / 1000); }
+    drawChart2('ch-opt', [
+        { x: fuels, y: alts, label: 'Alt max (km)', color: '#3b82f6' },
+        { x: [fuels[0], fuels[fuels.length - 1]], y: [target / 1000, target / 1000], label: `Objetivo: ${target / 1000} km`, color: '#ef4444', lineWidth: 1 }
+    ], 'Combustible (t)', 'Altitud max (km)');
+
+    // Table
+    let html = '<table><tr><th>Iter</th><th>a (kg)</th><th>b (kg)</th><th>c (kg)</th><th>f(c) (km)</th><th>Error (kg)</th></tr>';
+    rows.forEach(r => { html += `<tr><td>${r.i}</td><td>${r.a.toFixed(0)}</td><td>${r.b.toFixed(0)}</td><td>${r.c.toFixed(0)}</td><td>${r.fc.toFixed(2)}</td><td>${r.err.toFixed(0)}</td></tr>`; });
+    document.getElementById('opt-table').innerHTML = html + '</table>';
+}
+
+function runOptimNewton() {
+    const target = parseFloat(document.getElementById('o-target').value) * 1000;
+    const tol = parseFloat(document.getElementById('o-tol').value);
+    let x = (parseFloat(document.getElementById('o-fmin').value) + parseFloat(document.getElementById('o-fmax').value)) / 2;
+    const f = fuel => getMaxAlt(fuel) - target;
+    const dh = 1000;
+
+    const rows = [];
+    for (let i = 1; i <= 20; i++) {
+        const fx = f(x);
+        const dfx = (f(x + dh) - f(x - dh)) / (2 * dh);
+        if (Math.abs(dfx) < 1e-10) break;
+        const xNew = x - fx / dfx;
+        const err = Math.abs(xNew - x);
+        rows.push({ i, x, fx: fx / 1000, dfx, xNew, err });
+        x = Math.max(10000, xNew);
+        if (err < tol) break;
+    }
+
+    const L = rows[rows.length - 1];
+    document.getElementById('o-result').innerHTML = `<div class="result-box"><b>Newton-Raphson:</b> Combustible minimo = ${L.xNew.toFixed(0)} kg | Alt max = ${((f(L.xNew) + target) / 1000).toFixed(1)} km | Iter: ${L.i}</div>`;
+
+    let html = '<table><tr><th>Iter</th><th>x (kg)</th><th>f(x) (km)</th><th>f\'(x)</th><th>x_new (kg)</th><th>Error (kg)</th></tr>';
+    rows.forEach(r => { html += `<tr><td>${r.i}</td><td>${r.x.toFixed(0)}</td><td>${r.fx.toFixed(2)}</td><td>${r.dfx.toFixed(4)}</td><td>${r.xNew.toFixed(0)}</td><td>${r.err.toFixed(0)}</td></tr>`; });
+    document.getElementById('opt-table').innerHTML = html + '</table>';
+
+    // Also draw chart
+    const fuels = [], alts = [];
+    for (let f = 100000; f <= 500000; f += 10000) { fuels.push(f / 1000); alts.push(getMaxAlt(f) / 1000); }
+    drawChart2('ch-opt', [
+        { x: fuels, y: alts, label: 'Alt max (km)', color: '#3b82f6' },
+        { x: [fuels[0], fuels[fuels.length - 1]], y: [target / 1000, target / 1000], label: `Objetivo: ${target / 1000} km`, color: '#ef4444', lineWidth: 1 }
+    ], 'Combustible (t)', 'Altitud max (km)');
+}
+
+// ========== TABS ==========
+function showTab(id, el) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('p-' + id).classList.add('active');
+    el.classList.add('active');
+    if (id === 'traj' && simData) drawTrajectoryCharts();
+}
+
+// Init
+drawRocketScene(null);
+</script>
+</body>
+</html>
