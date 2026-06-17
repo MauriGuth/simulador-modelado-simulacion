@@ -1,5 +1,6 @@
-.claude/
-__pycache__/
-*.pyc
-.DS_Store
-.streamlit/secrets.toml
+# Artefactos de compilacion LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
